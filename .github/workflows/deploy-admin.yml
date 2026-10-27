@@ -37,4 +37,4 @@ jobs:
         run: |
           rsync -az --delete \
             -e "ssh -p ${{ secrets.SSH_PORT }}" \
-            admin/dist/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ vars.ADMIN_PATH }}/
+            dist/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ vars.ADMIN_PATH }}/
