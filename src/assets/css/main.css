@@ -1,0 +1,101 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap');
+
+:root {
+  /* Synsyma brand */
+  --syn-navy: #04143B;
+  --syn-blue-dark: #0066FF;
+  --syn-blue-light: #00C2FF;
+  --syn-green-lime: #8EF500;
+  --syn-green-emerald: #00B32C;
+  --syn-green-text: #55D400;
+  --syn-white: #FFFFFF;
+
+  --grad-blue: linear-gradient(120deg, var(--syn-blue-dark) 30%, #0A8BFF);
+  --grad-blue-full: linear-gradient(135deg, var(--syn-blue-dark), var(--syn-blue-light));
+  --grad-green: linear-gradient(135deg, var(--syn-green-emerald), var(--syn-green-lime));
+
+  /* Light theme (navy is used as the text colour and for sidebar/brand panels) */
+  --page: #f5f8fd;
+  --surface: #ffffff;
+  --line: rgba(4, 20, 59, 0.1);
+  --text: #04143B;
+  --text-dim: rgba(4, 20, 59, 0.74);
+  --text-mute: rgba(4, 20, 59, 0.6);
+  --blue-ink: #0066FF;   /* links and text on white */
+  --green-ink: #008a22;  /* readable green for text on white */
+  --danger: #d92d4a;
+  --shadow-card: 0 1px 2px rgba(4, 20, 59, 0.04), 0 10px 28px -14px rgba(4, 20, 59, 0.16);
+
+  --radius-lg: 20px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --sidebar-w: 264px;
+  --topbar-h: 68px;
+
+  --font-body: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Sora', 'Manrope', system-ui, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--page);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, p { margin: 0; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+:focus-visible { outline: 2px solid var(--syn-blue-dark); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* Shared building blocks */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 44px; padding: 0 18px; border: 0; border-radius: var(--radius-md);
+  font-weight: 600; white-space: nowrap;
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.btn-primary { background: var(--grad-blue); color: #fff; box-shadow: 0 8px 24px -8px rgba(0, 102, 255, 0.7); }
+.btn-primary:hover { box-shadow: 0 12px 28px -8px rgba(0, 194, 255, 0.55); }
+.btn-primary:active { transform: translateY(1px); }
+.btn-ghost { background: #fff; border: 1px solid var(--line); color: var(--text); }
+.btn-ghost:hover { background: rgba(4, 20, 59, 0.05); }
+.btn[disabled] { opacity: 0.6; cursor: not-allowed; }
+
+.field {
+  display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 14px;
+  background: #fff; border: 1px solid rgba(4, 20, 59, 0.16);
+  border-radius: var(--radius-md); color: var(--text-mute);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.field:focus-within { border-color: var(--syn-blue-dark); box-shadow: 0 0 0 4px rgba(0, 102, 255, 0.14); color: var(--syn-blue-dark); }
+.field input { flex: 1; min-width: 0; background: none; border: 0; outline: none; color: var(--text); }
+.field input::placeholder { color: var(--text-mute); }
+
+.icon-btn {
+  display: inline-grid; place-items: center; width: 42px; height: 42px; flex: none;
+  background: #fff; border: 1px solid var(--line);
+  border-radius: var(--radius-md); transition: background 0.15s;
+}
+.icon-btn:hover { background: rgba(4, 20, 59, 0.05); }
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
