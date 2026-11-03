@@ -54,6 +54,7 @@ watch(() => chat.threadLoading, (l) => { if (!l) toBottom() })
 watch(() => chat.messages.length, (n, o) => {
   if (n <= o) return
   const last = chat.messages[n - 1]
+  if (!last) return 
   if (last.is_mine || nearBottom()) toBottom(true)
   else pill.value += n - o
 })

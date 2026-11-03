@@ -20,7 +20,7 @@ let ro: ResizeObserver | undefined
 onMounted(() => {
   if (!wrap.value) return
   W.value = wrap.value.clientWidth || 640
-  ro = new ResizeObserver(([e]) => (W.value = Math.max(280, Math.floor(e.contentRect.width))))
+  ro = new ResizeObserver(([e]) => { if (e) W.value = Math.max(280, Math.floor(e.contentRect.width)) })
   ro.observe(wrap.value)
 })
 onBeforeUnmount(() => ro?.disconnect())
@@ -45,7 +45,7 @@ function linePath(d: number[]) {
     .map((v, i) => {
       if (!i) return `M${x(i)} ${y(v)}`
       const cx = (x(i) + x(i - 1)) / 2
-      return `C${cx} ${y(d[i - 1])} ${cx} ${y(v)} ${x(i)} ${y(v)}`
+      return `C${cx} ${y(d[i - 1] ?? 0)} ${cx} ${y(v)} ${x(i)} ${y(v)}`
     })
     .join(' ')
 }
@@ -103,13 +103,13 @@ const fmt = (v: number) => (v >= 1000 ? `${v / 1000}k` : String(v))
 
       <g v-if="hover !== null">
         <line class="cursor" :x1="x(hover)" :x2="x(hover)" :y1="pad.t" :y2="H - pad.b" />
-        <circle v-for="p in paths" :key="p.name" :cx="x(hover)" :cy="y(p.data[hover])" r="5" :fill="p.color" stroke="#fff" stroke-width="2" />
+        <circle v-for="p in paths" :key="p.name" :cx="x(hover)" :cy="y(p.data[hover] ?? 0)" r="5" :fill="p.color" stroke="#fff" stroke-width="2" />
       </g>
     </svg>
 
     <div v-if="hover !== null" class="tip" :style="{ left: `${x(hover)}px` }">
       <strong>{{ labels[hover] }}</strong>
-      <span v-for="p in paths" :key="p.name"><i :style="{ background: p.color }" />{{ p.name }} {{ p.data[hover].toLocaleString() }}</span>
+      <span v-for="p in paths" :key="p.name"><i :style="{ background: p.color }" />{{ p.name }} {{ (p.data[hover] ?? 0).toLocaleString() }}</span>
     </div>
   </div>
 </template>

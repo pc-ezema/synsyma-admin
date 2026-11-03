@@ -193,7 +193,8 @@ export const useChatStore = defineStore('chat', () => {
       loadInbox({ silent: true })
     } catch (e) {
       const i = messages.value.findIndex((x) => x.client_id === m.client_id)
-      if (i >= 0) { messages.value[i].status = 'failed'; messages.value[i].error = parseError(e, "Couldn't send.").message }
+      const row = messages.value[i]
+      if (i >= 0 && row) { row.status = 'failed'; row.error = parseError(e, "Couldn't send.").message }
     }
   }
 
