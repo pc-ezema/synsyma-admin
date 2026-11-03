@@ -7,7 +7,7 @@ const props = defineProps<{
   label: string
   value: string
   delta: number
-  spark: number[]
+  spark: readonly number[]
   icon: Component
   tone: 'blue' | 'green'
 }>()

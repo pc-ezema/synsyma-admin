@@ -10,7 +10,7 @@ const auth = useAuthStore()
 const greeting = computed(() => {
   const h = new Date().getHours()
   const part = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening'
-  return `Good ${part}, ${auth.user?.name?.split(' ')[0] ?? 'there'}`
+  return `Good ${part}, ${auth.user?.name ?? 'there'}`
 })
 
 /* ---- Demo data: replace with calls to your Admin module endpoints ---- */

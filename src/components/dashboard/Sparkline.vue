@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-const props = defineProps<{ data: number[]; tone: 'blue' | 'green' }>()
+const props = defineProps<{ data: readonly number[]; tone: 'blue' | 'green' }>()
 const id = `sp-${Math.random().toString(36).slice(2, 8)}`
 const color = computed(() => (props.tone === 'green' ? '#00B32C' : '#0066FF'))
 

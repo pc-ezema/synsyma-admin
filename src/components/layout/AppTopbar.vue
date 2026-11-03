@@ -1,13 +1,22 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Bell, ChevronDown, LogOut, Menu, Search, Settings } from 'lucide-vue-next'
+import { Bell, BellRing, ChevronDown, LogOut, Menu, Search, Settings, UserRound } from 'lucide-vue-next'
+import UserAvatar from '@/components/ui/UserAvatar.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
+import { useChatStore } from '@/stores/chat'
+import { confirm } from '@/composables/useConfirm'
+import { toast } from '@/composables/useToast'
+import { enableAdminPush, pushState, pushSupported } from '@/lib/push'
+import { parseError } from '@/lib/errors'
 
 const auth = useAuthStore()
 const ui = useUiStore()
 const router = useRouter()
+const chat = useChatStore()
+const pushOn = computed(() => pushState.registered)
+const signingOut = ref(false)
 
 const open = ref(false)
 const root = ref<HTMLElement | null>(null)
@@ -31,8 +40,31 @@ onBeforeUnmount(() => {
 })
 
 async function signOut() {
+  open.value = false
+  const yes = await confirm({
+    title: 'Sign out?',
+    message: 'You will need your email and password to get back in.',
+    confirmText: 'Sign out',
+    tone: 'danger',
+  })
+  if (!yes) return
+  signingOut.value = true
   await auth.logout()
-  router.push({ name: 'login' })
+  router.replace({ name: 'login' })
+}
+
+async function bell() {
+  if (!pushSupported()) { toast.info('Browser alerts are not set up for this dashboard.'); return }
+  if (pushOn.value) { router.push('/chat'); return }
+  try {
+    const r = await enableAdminPush()
+    if (r === 'enabled') toast.success('Browser alerts are on for new messages.')
+    else if (r === 'denied') toast.error('Alerts are blocked. Allow notifications for this site in your browser settings.')
+  } catch (e) {
+    console.error('Push setup failed:', e)
+    // API errors get the friendly message; Firebase/service-worker errors show what actually went wrong
+    toast.error(e instanceof Error && !('isAxiosError' in e) ? `Alerts could not be turned on: ${e.message}` : parseError(e).message)
+  }
 }
 </script>
 
@@ -44,21 +76,21 @@ async function signOut() {
 
     <label class="search field">
       <Search :size="18" />
-      <input type="search" placeholder="Search users, messages..." aria-label="Search" />
+      <input type="search" placeholder="Search..." aria-label="Search" />
     </label>
 
     <div class="actions">
-      <button class="icon-btn bell" type="button" aria-label="Notifications, 3 unread">
-        <Bell :size="19" />
-        <span class="pip" />
+      <button class="icon-btn bell" type="button" :aria-label="pushOn ? `Messages, ${chat.unread} unread` : 'Turn on message alerts'" :title="pushOn ? 'Messages' : 'Turn on message alerts'" @click="bell">
+        <BellRing v-if="pushOn" :size="19" /><Bell v-else :size="19" />
+        <span v-if="chat.unread" class="pip" />
       </button>
 
       <div ref="root" class="user">
         <button class="user-btn" type="button" aria-haspopup="menu" :aria-expanded="open" @click="open = !open">
-          <span class="avatar">{{ initials }}</span>
+          <UserAvatar :name="auth.user?.name" :src="auth.user?.photo_url" :size="36" />
           <span class="who">
             <strong>{{ auth.user?.name ?? 'Admin' }}</strong>
-            <small>{{ auth.user?.role ?? 'Administrator' }}</small>
+            <small>{{ (auth.user?.role ?? 'Administrator').replace(/_/g, ' ') }}</small>
           </span>
           <ChevronDown :size="16" class="chev" :class="{ flip: open }" />
         </button>
@@ -68,8 +100,9 @@ async function signOut() {
             <strong>{{ auth.user?.name }}</strong>
             <small>{{ auth.user?.email }}</small>
           </div>
+          <RouterLink to="/profile" role="menuitem" @click="open = false"><UserRound :size="16" /> My profile</RouterLink>
           <RouterLink to="/settings" role="menuitem" @click="open = false"><Settings :size="16" /> Settings</RouterLink>
-          <button type="button" role="menuitem" class="out" @click="signOut"><LogOut :size="16" /> Sign out</button>
+          <button type="button" role="menuitem" class="out" @click="signOut"><LogOut :size="16" /> {{ signingOut ? 'Signing out' : 'Sign out' }}</button>
         </div>
       </div>
     </div>
@@ -101,7 +134,7 @@ async function signOut() {
 }
 .who { display: grid; text-align: left; line-height: 1.2; }
 .who strong { font-size: 14px; }
-.who small { color: var(--text-mute); font-size: 12px; }
+.who small { color: var(--text-mute); font-size: 12px; text-transform: capitalize; }
 .chev { color: var(--text-mute); transition: transform 0.2s; }
 .chev.flip { transform: rotate(180deg); }
 

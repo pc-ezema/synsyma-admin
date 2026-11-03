@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import axios from 'axios'
-import { AlertCircle, Eye, EyeOff, Loader2, Lock, Mail } from 'lucide-vue-next'
+import { AlertCircle, Eye, EyeOff, Info, Loader2, Lock, Mail } from 'lucide-vue-next'
 import BrandMark from '@/components/BrandMark.vue'
 import Sparkline from '@/components/dashboard/Sparkline.vue'
 import { useAuthStore } from '@/stores/auth'
+import { parseError } from '@/lib/errors'
+import { landingPath } from '@/router'
+import { toast } from '@/composables/useToast'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -17,30 +19,34 @@ const remember = ref(true)
 const showPassword = ref(false)
 const loading = ref(false)
 const error = ref('')
+const wait = ref(0)
+let timer: number | undefined
 
+const expired = computed(() => route.query.reason === 'expired')
 const spark = [12, 18, 15, 24, 22, 31, 28, 38, 35, 46, 52, 61]
 
+function countdown(sec: number) {
+  wait.value = sec
+  window.clearInterval(timer)
+  timer = window.setInterval(() => { if (--wait.value <= 0) window.clearInterval(timer) }, 1000)
+}
+
 async function submit() {
+  if (loading.value || wait.value > 0) return
   error.value = ''
-  if (!email.value || !password.value) {
-    error.value = 'Enter your email and password.'
-    return
-  }
+  if (!email.value || !password.value) { error.value = 'Enter your email and password.'; return }
   loading.value = true
   try {
     await auth.login(email.value, password.value, remember.value)
-    router.replace((route.query.redirect as string) || { name: 'dashboard' })
+    toast.success(`Welcome back, ${auth.user?.name ?? 'there'}.`)
+    const to = route.query.redirect as string | undefined
+    router.replace(to && to.startsWith('/') && !to.startsWith('//') ? to : landingPath())
   } catch (e) {
-    if (axios.isAxiosError(e)) {
-      const status = e.response?.status
-      if (status === 401) error.value = 'Email or password is incorrect.'
-      else if (status === 403) error.value = 'This account does not have admin access.'
-      else if (status === 422) error.value = Object.values(e.response?.data?.errors ?? {}).flat()[0] as string ?? 'Check your details and try again.'
-      else if (status === 429) error.value = 'Too many attempts. Wait a minute and try again.'
-      else error.value = "Can't reach the server. Check your connection and try again."
-    } else {
-      error.value = 'Something went wrong. Try again.'
-    }
+    const err = parseError(e)
+    if (err.status === 401) { error.value = 'Email or password is incorrect.'; password.value = '' }
+    else if (err.status === 403) error.value = err.message.includes('permission') ? 'This account does not have admin access.' : err.message
+    else error.value = err.message
+    if (err.status === 429) countdown(err.retryAfter ?? 30)
   } finally {
     loading.value = false
   }
@@ -50,7 +56,7 @@ async function submit() {
 <template>
   <div class="login">
     <aside class="showcase">
-      <div class="brand"><BrandMark :size="100" /></div>
+      <div class="brand"><BrandMark :size="60" /></div>
 
       <div class="pitch">
         <p class="pitch-title">Every user, message and signup in one view.</p>
@@ -76,13 +82,14 @@ async function submit() {
         <h1>Welcome back</h1>
         <p class="sub">Sign in to the admin dashboard.</p>
 
+        <div v-if="expired && !error" class="notice" role="status"><Info :size="18" />Your session ended. Sign in again to continue.</div>
         <div v-if="error" class="alert" role="alert"><AlertCircle :size="18" />{{ error }}</div>
 
         <div class="group">
           <label for="email">Email</label>
           <div class="field">
             <Mail :size="18" />
-            <input id="email" v-model.trim="email" type="email" autocomplete="username" placeholder="admin@Synsyma.com" inputmode="email" />
+            <input id="email" v-model.trim="email" type="email" autocomplete="username" placeholder="you@synsyma.com" inputmode="email" />
           </div>
         </div>
 
@@ -104,13 +111,12 @@ async function submit() {
             <span class="box" />
             Keep me signed in
           </label>
-          <!-- TODO: point to your forgot-password flow -->
-          <button type="button" class="link">Forgot password?</button>
+                    <span class="hint-inline">Forgot it? Ask a super admin to reset it.</span>
         </div>
 
-        <button class="btn btn-primary submit" type="submit" :disabled="loading">
+        <button class="btn btn-primary submit" type="submit" :disabled="loading || wait > 0">
           <Loader2 v-if="loading" :size="18" class="spin" />
-          {{ loading ? 'Signing in' : 'Sign in' }}
+          {{ loading ? 'Signing in' : wait > 0 ? `Try again in ${wait}s` : 'Sign in' }}
         </button>
       </form>
 
@@ -168,6 +174,9 @@ h1 { font-family: var(--font-display); font-size: 30px; font-weight: 600; letter
   display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; font-size: 14px;
   color: #9f1239; background: rgba(217, 45, 74, 0.08); border: 1px solid rgba(217, 45, 74, 0.3); border-radius: var(--radius-md);
 }
+.notice { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; font-size: 14px; color: #0b3d91; background: rgba(0, 102, 255, 0.07); border: 1px solid rgba(0, 102, 255, 0.25); border-radius: var(--radius-md); }
+.notice svg { flex: none; margin-top: 1px; color: var(--blue-ink); }
+.hint-inline { color: var(--text-mute); font-size: 13px; }
 .alert svg { flex: none; margin-top: 1px; color: var(--danger); }
 
 .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 14px; }

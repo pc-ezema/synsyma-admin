@@ -1,58 +1,56 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import api, { TOKEN_KEY, USER_KEY } from '@/lib/api'
-
-export interface AdminUser {
-  id: number
-  name: string
-  email: string
-  role: string
-  avatar?: string | null
-}
-
-const MOCK = import.meta.env.VITE_MOCK_AUTH === 'true'
-
-function read(key: string) {
-  return localStorage.getItem(key) ?? sessionStorage.getItem(key)
-}
+import { api, bare } from '@/lib/api'
+import { session, sessionFromResponse, type AuthPayload } from '@/lib/session'
+import { disableAdminPush } from '@/lib/push'
+import type { AdminUser } from '@/types'
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string | null>(read(TOKEN_KEY))
-  const user = ref<AdminUser | null>(JSON.parse(read(USER_KEY) ?? 'null'))
-  const isAuthenticated = computed(() => !!token.value)
+  const user = ref<AdminUser | null>(session.get()?.user ?? null)
+  const authed = ref(!!session.get())
+  const endReason = ref<string | null>(null)
 
-  /**
-   * Expects: POST /auth/login -> { token: string, user: { id, name, email, role } }
-   * (adjust the mapping below to match your Authentication module's response)
-   */
-  async function login(email: string, password: string, remember: boolean) {
-    let data: { token: string; user: AdminUser }
-    if (MOCK) {
-      data = { token: 'mock-token', user: { id: 1, name: 'Ada Admin', email, role: 'Super admin' } }
-    } else {
-      const res = await api.post('/auth/login', { email, password, device_name: 'admin-dashboard' })
-      data = res.data.data ?? res.data
-    }
-    const store = remember ? localStorage : sessionStorage
-    store.setItem(TOKEN_KEY, data.token)
-    store.setItem(USER_KEY, JSON.stringify(data.user))
-    token.value = data.token
-    user.value = data.user
+  // Mirror the session module (covers refresh failures and other tabs)
+  session.subscribe((s, why) => {
+    user.value = s?.user ?? null
+    authed.value = !!s
+    endReason.value = s ? null : why ?? null
+  })
+
+  const isAuthenticated = computed(() => authed.value)
+  const isSuperAdmin = computed(() => !!user.value?.roles.includes('super_admin'))
+
+  function can(permission?: string | string[]): boolean {
+    if (!permission || (Array.isArray(permission) && !permission.length)) return true
+    if (!user.value) return false
+    if (isSuperAdmin.value) return true
+    const have = new Set(user.value.permissions)
+    return (Array.isArray(permission) ? permission : [permission]).every((p) => have.has(p))
   }
+
+  async function login(email: string, password: string, remember: boolean) {
+    const { data } = await bare.post<{ data: AuthPayload }>('/admin/auth/login', { email, password })
+    session.set(sessionFromResponse(data.data, remember))
+  }
+
+  /** Re-read roles and permissions so changes made by another admin apply without re-login. */
+  async function refreshProfile() {
+    if (!session.get()) return
+    try {
+      const { data } = await api.get<{ data: AuthPayload }>('/admin/auth/me')
+      const p = data.data
+      session.patchUser({ name: p.name, email: p.email, role: p.role ?? null, roles: p.roles ?? [], permissions: p.permissions ?? [], phone: p.phone ?? null, photo_url: p.photo_url ?? null })
+    } catch { /* offline or expired; the interceptor handles expiry */ }
+  }
+
+  /** Apply profile changes (name, phone, photo) to the signed-in user without a reload. */
+  function applyProfile(p: Partial<AdminUser>) { session.patchUser(p) }
 
   async function logout() {
-    try {
-      if (!MOCK) await api.post('/auth/logout')
-    } catch {
-      /* token may already be invalid; clear locally regardless */
-    }
-    for (const s of [localStorage, sessionStorage]) {
-      s.removeItem(TOKEN_KEY)
-      s.removeItem(USER_KEY)
-    }
-    token.value = null
-    user.value = null
+    try { await disableAdminPush() } catch { /* ignore */ }
+    try { await api.post('/admin/auth/logout') } catch { /* token may already be dead */ }
+    session.clear('signed_out')
   }
 
-  return { token, user, isAuthenticated, login, logout }
+  return { user, isAuthenticated, isSuperAdmin, endReason, can, login, logout, refreshProfile, applyProfile }
 })

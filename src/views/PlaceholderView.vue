@@ -7,7 +7,7 @@ const route = useRoute()
   <section class="empty card">
     <h1>{{ route.meta.title }}</h1>
     <p>Nothing to show yet. This page will connect to the {{ String(route.meta.title).toLowerCase() }} module once its API endpoints are ready.</p>
-    <RouterLink to="/dashboard" class="btn btn-ghost">Back to dashboard</RouterLink>
+    <RouterLink to="/" class="btn btn-ghost">Back to dashboard</RouterLink>
   </section>
 </template>
 
