@@ -10,7 +10,7 @@ const geo = computed(() => {
   const min = Math.min(...d)
   const range = Math.max(...d) - min || 1
   const pts = d.map((v, i) => [(i / (d.length - 1)) * 100, 4 + (1 - (v - min) / range) * 24])
-  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${(p[0] ?? 0).toFixed(2)} ${(p[1] ?? 0).toFixed(2)}`)
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${(p[0] ?? 0).toFixed(2)} ${(p[1] ?? 0).toFixed(2)}`).join(' ')
   return { line, area: `${line} L100 32 L0 32 Z` }
 })
 </script>
