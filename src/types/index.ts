@@ -77,7 +77,7 @@ export type PriceType = 'hourly' | 'fixed' | 'quote'
 export type ServiceTier = 'premium' | 'regular'
 export interface ServiceItem {
   id: string; category_id: string; category_name: string | null; category_slug: string | null
-  name: string; slug: string; tier: ServiceTier | null; description: string | null
+  name: string; slug: string; tier: ServiceTier | null; description: string | null; image_url: string | null
   price_type: PriceType; currency: string; base_price: number | null; included_hours: number | null; additional_hour_price: number | null
   price_label: string; additional_label: string | null; parts_note: string | null; parts_tbd: boolean
   team_size: number | null; home_protection: boolean; is_active: boolean; sort_order: number
