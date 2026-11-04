@@ -1,4 +1,4 @@
-import { LayoutDashboard, LifeBuoy, MessageSquare, Settings, ShieldCheck, UserCircle, UserCog, UserMinus, Users } from 'lucide-vue-next'
+import { Layers, LayoutDashboard, LifeBuoy, MessageSquare, Settings, ShieldCheck, UserCircle, UserCog, UserMinus, Users, Wrench } from 'lucide-vue-next'
 import type { Component } from 'vue'
 
 export interface NavItem { to: string; label: string; icon: Component; permission?: string | string[]; badge?: 'chat' }
@@ -10,7 +10,9 @@ export const navGroups: NavGroup[] = [
     title: 'Manage',
     items: [
       { to: '/users', label: 'Users', icon: Users, permission: 'users.view' },
-      { to: '/profile', label: 'Profile', icon: UserCircle, permission: 'profiles.view' },
+      { to: '/profile', label: 'Profiles', icon: UserCircle, permission: 'profiles.view' },
+      { to: '/services', label: 'Services', icon: Wrench, permission: 'services.view' },
+      { to: '/categories', label: 'Categories', icon: Layers, permission: 'categories.view' },
       { to: '/support', label: 'Support contacts', icon: LifeBuoy, permission: 'support.view' },
       { to: '/deletions', label: 'Deleted accounts', icon: UserMinus, permission: 'deletions.view' },
       { to: '/chat', label: 'Chat', icon: MessageSquare, permission: 'chat.view', badge: 'chat' },
