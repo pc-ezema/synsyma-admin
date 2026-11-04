@@ -10,7 +10,7 @@ export const navGroups: NavGroup[] = [
     title: 'Manage',
     items: [
       { to: '/users', label: 'Users', icon: Users, permission: 'users.view' },
-      { to: '/profiles', label: 'Profile', icon: UserCircle, permission: 'profiles.view' },
+      { to: '/profile', label: 'Profile', icon: UserCircle, permission: 'profiles.view' },
       { to: '/support', label: 'Support contacts', icon: LifeBuoy, permission: 'support.view' },
       { to: '/deletions', label: 'Deleted accounts', icon: UserMinus, permission: 'deletions.view' },
       { to: '/chat', label: 'Chat', icon: MessageSquare, permission: 'chat.view', badge: 'chat' },
