@@ -82,3 +82,45 @@ export interface ServiceItem {
   price_label: string; additional_label: string | null; parts_note: string | null; parts_tbd: boolean
   team_size: number | null; home_protection: boolean; is_active: boolean; sort_order: number
 }
+
+// ---- contractors ----
+export type ContractorType = 'company' | 'individual'
+export type ContractorStatus = 'pending' | 'approved' | 'suspended' | 'rejected'
+export type CountryCode = 'CA' | 'US' | 'GB'
+export type DocKind = 'id' | 'insurance' | 'licence' | 'other'
+export interface ContractorRow {
+  id: string; type: ContractorType; name: string; contact_name: string; email: string; phone: string
+  country: CountryCode; city: string; region: string; status: ContractorStatus
+  campaign_name: string | null; source: 'self' | 'admin'; categories_count: number | null; created_at: string
+}
+export interface ContractorDoc { id: string; kind: DocKind; original_name: string; mime: string; size: number; verified: boolean; created_at: string }
+export interface ContractorDetail extends ContractorRow {
+  address_line1: string; postal_code: string; tax_number: string | null; about: string | null
+  status_reason: string | null; commission_percent: number | null; admin_notes: string | null; approved_at: string | null
+  categories: { id: string; name: string }[]
+  areas: { id: string; country: CountryCode; region: string; city: string | null }[]
+  documents: ContractorDoc[]
+}
+export interface ContractorSummary { pending: number; approved: number; suspended: number; rejected: number; total: number }
+export interface ContractorCampaign { id: string; name: string; code: string; scans: number; signups: number; is_active: boolean; created_at: string }
+/* ---------- bookings ---------- */
+export type BookingStatus = 'pending_payment' | 'confirmed' | 'assigned' | 'in_progress' | 'completed' | 'cancelled' | 'refunded' | 'quote_requested' | 'quote_sent'
+export interface BookingRow {
+  id: string; reference: string; status: BookingStatus
+  service_name: string; category_name: string | null; tier: string | null; price_type: 'hourly' | 'fixed' | 'quote'
+  currency: string; total: string; total_label: string | null
+  starts_at: string; starts_at_local: string; timezone: string
+  country: CountryCode; city: string; region: string
+  customer_name: string; customer_email: string | null; contractor_id: string | null; contractor_name: string | null
+  created_at: string
+}
+export interface BookingEventRow { id: string; type: string; from_status: BookingStatus | null; to_status: BookingStatus | null; actor: 'customer' | 'admin' | 'system'; note: string | null; created_at: string }
+export interface BookingDetail extends BookingRow {
+  address_line1: string; address_line2: string | null; postal_code: string; instructions: string | null; notes: string | null
+  customer_phone: string | null; admin_notes: string | null
+  subtotal: string; discount_total: string; tax_total: string; base_price: string | null; included_hours: number | null; additional_hour_price: string | null
+  promo_code: string | null; assigned_at: string | null; completed_at: string | null; cancelled_at: string | null
+  events: BookingEventRow[]
+}
+export type BookingSummary = Record<'all' | BookingStatus, number>
+export interface ContractorOption { id: string; name: string; type: ContractorType; phone: string; email: string; covers_area: boolean }
