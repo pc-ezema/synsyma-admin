@@ -124,3 +124,9 @@ export interface BookingDetail extends BookingRow {
 }
 export type BookingSummary = Record<'all' | BookingStatus, number>
 export interface ContractorOption { id: string; name: string; type: ContractorType; phone: string; email: string; covers_area: boolean }
+
+export interface JoinOptions {
+  categories: { id: string; name: string }[]
+  countries: { code: CountryCode; name: string }[]
+  ref_valid: boolean
+}
