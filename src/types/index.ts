@@ -147,3 +147,17 @@ export interface PaymentRow {
 }
 export interface PaymentGateway { id: string; label: string; on: boolean; mode: 'live' | 'test' }
 export interface PaymentTotals { collected: number; refunded: number; net: number; paid_count: number; count: number }
+
+/* ---------- promo codes and banners ---------- */
+export type PromoState = 'active' | 'scheduled' | 'expired' | 'off'
+export interface PromoCode {
+  id: string; code: string; description: string | null; type: 'percent' | 'fixed'; value: string | number; value_label: string
+  max_discount: string | number | null; min_subtotal: string | number | null; starts_on: string | null; expires_on: string | null
+  max_uses: number | null; max_uses_per_user: number; first_booking_only: boolean; is_active: boolean
+  state: PromoState; used: number; saved: number; created_at: string
+}
+export type BannerLink = 'none' | 'service' | 'category'
+export interface PromoBanner {
+  id: string; title: string; subtitle: string | null; image_url: string | null; link_type: BannerLink; link_value: string | null
+  promo_code: string | null; starts_on: string | null; ends_on: string | null; sort_order: number; is_active: boolean
+}
