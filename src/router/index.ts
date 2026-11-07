@@ -3,7 +3,7 @@ import { useAuthStore } from '@/stores/auth'
 import { navGroups } from '@/lib/nav'
 
 declare module 'vue-router' {
-  interface RouteMeta { title?: string; requiresAuth?: boolean; guestOnly?: boolean; permission?: string | string[]; flush?: boolean }
+  interface RouteMeta { title?: string; requiresAuth?: boolean; public?: boolean; guestOnly?: boolean; permission?: string | string[]; flush?: boolean }
 }
 
 const placeholder = (path: string, title: string, permission?: string): RouteRecordRaw => ({
@@ -28,6 +28,8 @@ const router = createRouter({
         { path: 'deletions', name: 'deletions', component: () => import('@/views/DeletionsView.vue'), meta: { title: 'Deleted accounts', permission: 'deletions.view' } },
         { path: 'services', name: 'services', component: () => import('@/views/ServicesView.vue'), meta: { title: 'Services', permission: 'services.view' } },
         { path: 'bookings', name: 'bookings', component: () => import('@/views/BookingsView.vue'), meta: { title: 'Bookings', permission: 'bookings.view' } },
+        { path: 'booking-policy', name: 'booking-policy', component: () => import('@/views/BookingPolicyView.vue'), meta: { title: 'Booking policy', permission: 'bookings.manage' } },
+        { path: 'payments', name: 'payments', component: () => import('@/views/PaymentsView.vue'), meta: { title: 'Payments', permission: 'bookings.view' } },
         { path: 'bookings/:id', name: 'booking', component: () => import('@/views/BookingDetailView.vue'), meta: { title: 'Booking', permission: 'bookings.view' } },
         { path: 'contractors', name: 'contractors', component: () => import('@/views/ContractorsView.vue'), meta: { title: 'Contractors', permission: 'contractors.view' } },
         { path: 'contractors/:id', name: 'contractor', component: () => import('@/views/ContractorDetailView.vue'), meta: { title: 'Contractor', permission: 'contractors.view' } },

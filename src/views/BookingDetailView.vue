@@ -34,18 +34,19 @@ async function load() {
 onMounted(load)
 
 const cur = (v: string | number | null | undefined) => (v === null || v === undefined ? '' : money(v, b.value?.currency ?? 'USD'))
+const paymentLabel: Record<string, string> = { requires_payment: 'Not paid', succeeded: 'Paid', failed: 'Failed', refunded: 'Refunded', partially_refunded: 'Partly refunded' }
 
 // ---- status changes ----
-async function setStatus(status: BookingStatus, note?: string): Promise<boolean> {
+async function setStatus(status: BookingStatus, note?: string, refund?: RefundChoice): Promise<boolean> {
   busy.value = true
   try {
-    const res = await api.patch<{ message: string; data: BookingDetail }>(`/admin/bookings/${id}/status`, { status, note })
+    const res = await api.patch<{ message: string; data: BookingDetail }>(`/admin/bookings/${id}/status`, { status, note, refund })
     b.value = res.data.data; toast.success(res.data.message); return true
   } catch (e) { const err = parseError(e); if (why.open) why.error = err.message; else toast.error(err.message); return false }
   finally { busy.value = false }
 }
 async function markConfirmed() {
-  const yes = await confirm({ title: 'Mark as confirmed?', message: 'Online payment is not connected yet. Only do this if you have the payment, for example while testing.', confirmText: 'Mark confirmed', tone: 'primary' })
+  const yes = await confirm({ title: 'Mark as confirmed?', message: 'Card payments confirm a booking automatically. Only do this if you received payment another way.', confirmText: 'Mark confirmed', tone: 'primary' })
   if (yes) await setStatus('confirmed')
 }
 async function start() {
@@ -62,14 +63,45 @@ async function unassign() {
 }
 
 // ---- cancel (needs a reason) ----
-const why = reactive({ open: false, text: '', error: '', saving: false })
-function askCancel() { Object.assign(why, { open: true, text: '', error: '', saving: false }) }
+type RefundChoice = 'none' | 'policy' | 'full'
+const why = reactive({ open: false, text: '', error: '', saving: false, refund: 'none' as RefundChoice })
+function askCancel() {
+  const q = b.value?.cancel_quote
+  Object.assign(why, { open: true, text: '', error: '', saving: false, refund: q && q.refund > 0 ? 'policy' : 'none' })
+}
 async function submitCancel() {
   if (why.text.trim().length < 3) { why.error = 'Give a short reason.'; return }
   why.saving = true
-  const ok = await setStatus('cancelled', why.text.trim())
+  const ok = await setStatus('cancelled', why.text.trim(), (b.value?.refundable ?? 0) > 0 ? why.refund : 'none')
   why.saving = false
   if (ok) why.open = false
+}
+
+// ---- reschedule ----
+const rs = reactive({ open: false, value: '', note: '', error: '', saving: false })
+function askReschedule() { Object.assign(rs, { open: true, value: (b.value?.starts_at_local ?? '').slice(0, 16), note: '', error: '', saving: false }) }
+async function submitReschedule() {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(rs.value)) { rs.error = 'Choose a date and time.'; return }
+  rs.saving = true; rs.error = ''
+  try {
+    const res = await api.patch<{ message: string; data: BookingDetail }>(`/admin/bookings/${id}/reschedule`, { starts_at_local: rs.value, note: rs.note.trim() || undefined })
+    b.value = res.data.data; toast.success(res.data.message); rs.open = false
+  } catch (e) { rs.error = parseError(e).message } finally { rs.saving = false }
+}
+
+// ---- refund on its own ----
+const rf = reactive({ open: false, amount: '', note: '', error: '', saving: false })
+function askRefund() { Object.assign(rf, { open: true, amount: String(b.value?.refundable ?? ''), note: '', error: '', saving: false }) }
+async function submitRefund() {
+  const amt = Number(rf.amount)
+  if (!amt || amt <= 0) { rf.error = 'Enter an amount.'; return }
+  if (amt > (b.value?.refundable ?? 0)) { rf.error = `The most you can refund is ${cur(b.value?.refundable ?? 0)}.`; return }
+  if (rf.note.trim().length < 3) { rf.error = 'Give a short reason.'; return }
+  rf.saving = true; rf.error = ''
+  try {
+    const res = await api.post<{ message: string; data: BookingDetail }>(`/admin/bookings/${id}/refund`, { amount: amt, note: rf.note.trim() })
+    b.value = res.data.data; toast.success(res.data.message); rf.open = false
+  } catch (e) { rf.error = parseError(e).message } finally { rf.saving = false }
 }
 
 // ---- assign ----
@@ -116,6 +148,8 @@ async function saveNotes() {
           <button v-if="b.status === 'assigned'" type="button" class="btn btn-ghost" :disabled="busy" @click="openAssign">Reassign</button>
           <button v-if="b.status === 'assigned'" type="button" class="btn btn-ghost" :disabled="busy" @click="unassign">Remove contractor</button>
           <button v-if="b.status === 'in_progress'" type="button" class="btn btn-primary" :disabled="busy" @click="complete">Mark completed</button>
+          <button v-if="['pending_payment', 'confirmed', 'assigned'].includes(b.status)" type="button" class="btn btn-ghost" :disabled="busy" @click="askReschedule">Reschedule</button>
+          <button v-if="b.refundable > 0" type="button" class="btn btn-ghost" :disabled="busy" @click="askRefund">Refund…</button>
           <button v-if="['pending_payment', 'confirmed', 'assigned', 'in_progress', 'quote_requested', 'quote_sent'].includes(b.status)" type="button" class="btn btn-ghost danger" :disabled="busy" @click="askCancel">Cancel booking</button>
         </div>
       </div>
@@ -133,6 +167,8 @@ async function saveNotes() {
               <template v-else-if="b.price_type === 'fixed'">Fixed price</template>
               <template v-else>Quote</template>
             </dd>
+            <template v-if="b.extra_hours > 0"><dt>Extra hours</dt><dd>{{ b.extra_hours }} added by the customer</dd></template>
+            <template v-if="b.reschedule_count > 0"><dt>Rescheduled</dt><dd>{{ b.reschedule_count }} {{ b.reschedule_count === 1 ? 'time' : 'times' }} by the customer</dd></template>
             <dt>Customer notes</dt><dd>{{ b.notes || 'None' }}</dd>
           </dl>
         </section>
@@ -155,6 +191,19 @@ async function saveNotes() {
             <dt>Tax</dt><dd>{{ Number(b.tax_total) ? cur(b.tax_total) : '—' }}</dd>
             <dt>Total</dt><dd><strong>{{ b.price_type === 'quote' ? 'Quote' : cur(b.total) }}</strong></dd>
           </dl>
+          <h3>Payments</h3>
+          <template v-if="b.payments?.length">
+            <dl v-for="(pm, i) in b.payments" :key="pm.id" :class="{ sep: i > 0 }">
+              <dt>For</dt><dd>{{ pm.purpose === 'extra_hours' ? `${pm.hours} extra ${pm.hours === 1 ? 'hour' : 'hours'}` : 'The booking' }} · {{ cur(pm.amount) }}</dd>
+              <dt>Status</dt><dd>{{ paymentLabel[pm.status] ?? pm.status }}</dd>
+              <dt>Paid</dt><dd>{{ pm.paid_at ? formatDateTime(pm.paid_at) : '—' }}</dd>
+              <dt>Method</dt><dd>{{ pm.provider === 'paypal' ? 'PayPal' : pm.card_last4 ? `${(pm.card_brand ?? 'Card').toUpperCase()} •••• ${pm.card_last4}` : '—' }}</dd>
+              <template v-if="Number(pm.refunded_total)"><dt>Refunded</dt><dd>{{ cur(pm.refunded_total) }}</dd></template>
+              <template v-if="pm.failure_message"><dt>Last error</dt><dd>{{ pm.failure_message }}</dd></template>
+              <template v-if="pm.stripe_payment_intent_id"><dt>Reference</dt><dd><small>{{ pm.stripe_payment_intent_id }}</small></dd></template>
+            </dl>
+          </template>
+          <p v-else class="muted">No payment attempt yet.</p>
         </section>
 
         <section class="card box">
@@ -176,6 +225,12 @@ async function saveNotes() {
               <strong>
                 <template v-if="e.type === 'created'">Booking created</template>
                 <template v-else-if="e.type === 'assigned'">Assigned to {{ e.note }}</template>
+                <template v-else-if="e.type === 'rescheduled'">Rescheduled</template>
+                <template v-else-if="e.type === 'extra_hours'">Extra hours added</template>
+                <template v-else-if="e.type === 'refund'">Refund</template>
+                <template v-else-if="e.type === 'payment_failed'">Payment failed</template>
+                <template v-else-if="e.type === 'payment_late'">Late payment refunded</template>
+                <template v-else-if="e.type === 'payment_received'">Payment received</template>
                 <template v-else-if="e.to_status">{{ statusLabel[e.to_status] }}</template>
                 <template v-else>Note</template>
               </strong>
@@ -208,6 +263,12 @@ async function saveNotes() {
         <form id="cancel-form" novalidate @submit.prevent="submitCancel">
           <label class="label" for="why">Reason <span class="muted">(kept on record)</span></label>
           <textarea id="why" v-model="why.text" class="input ta" rows="3" maxlength="300" :class="{ invalid: why.error }" />
+          <fieldset v-if="b.refundable > 0" class="rf">
+            <legend class="label">Refund the customer</legend>
+            <label v-if="b.cancel_quote"><input v-model="why.refund" type="radio" value="policy"> Per policy: {{ cur(b.cancel_quote.refund) }}<small>{{ b.cancel_quote.message }}</small></label>
+            <label><input v-model="why.refund" type="radio" value="full"> Full refund: {{ cur(b.refundable) }}</label>
+            <label><input v-model="why.refund" type="radio" value="none"> No refund</label>
+          </fieldset>
           <p v-if="why.error" class="err-text">{{ why.error }}</p>
         </form>
         <template #footer>
@@ -215,11 +276,45 @@ async function saveNotes() {
           <button type="submit" form="cancel-form" class="btn btn-danger" :disabled="why.saving"><Loader2 v-if="why.saving" :size="16" class="spin" /> Cancel booking</button>
         </template>
       </Modal>
+
+      <Modal :open="rs.open" title="Reschedule this booking" :width="440" @close="rs.open = false">
+        <form id="reschedule-form" novalidate @submit.prevent="submitReschedule">
+          <p class="muted">Times are in the customer's local time ({{ b.timezone }}). The contractor, if any, stays assigned, so tell them about the change.</p>
+          <label class="label" for="rs-when">New date and time</label>
+          <input id="rs-when" v-model="rs.value" type="datetime-local" step="900" class="input" :class="{ invalid: rs.error }">
+          <label class="label" for="rs-note">Note <span class="muted">(kept on record)</span></label>
+          <textarea id="rs-note" v-model="rs.note" class="input ta" rows="2" maxlength="300" />
+          <p v-if="rs.error" class="err-text">{{ rs.error }}</p>
+        </form>
+        <template #footer>
+          <button type="button" class="btn btn-ghost" @click="rs.open = false">Close</button>
+          <button type="submit" form="reschedule-form" class="btn btn-primary" :disabled="rs.saving"><Loader2 v-if="rs.saving" :size="16" class="spin" /> Reschedule</button>
+        </template>
+      </Modal>
+
+      <Modal :open="rf.open" title="Refund this booking" :width="440" @close="rf.open = false">
+        <form id="refund-form" novalidate @submit.prevent="submitRefund">
+          <p class="muted">Paid {{ cur(b.payment?.amount) }}. You can refund up to {{ cur(b.refundable) }}. The money goes back to the customer's card through Stripe.</p>
+          <label class="label" for="rf-amt">Amount</label>
+          <input id="rf-amt" v-model="rf.amount" class="input" inputmode="decimal" :class="{ invalid: rf.error }">
+          <label class="label" for="rf-note">Reason <span class="muted">(kept on record)</span></label>
+          <textarea id="rf-note" v-model="rf.note" class="input ta" rows="2" maxlength="300" />
+          <p v-if="rf.error" class="err-text">{{ rf.error }}</p>
+        </form>
+        <template #footer>
+          <button type="button" class="btn btn-ghost" @click="rf.open = false">Close</button>
+          <button type="submit" form="refund-form" class="btn btn-danger" :disabled="rf.saving"><Loader2 v-if="rf.saving" :size="16" class="spin" /> Refund</button>
+        </template>
+      </Modal>
     </template>
   </div>
 </template>
 
 <style scoped>
+dl.sep { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.rf { border: 0; padding: 0; margin: 14px 0 0; display: grid; gap: 8px; }
+.rf label { display: block; font-size: 14px; }
+.rf small { display: block; margin-left: 22px; color: var(--text-mute); }
 .pad { padding: 16px; }
 .back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 14px; font-weight: 600; color: var(--text-dim); }
 .back:hover { color: var(--blue-ink); }

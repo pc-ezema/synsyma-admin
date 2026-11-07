@@ -103,6 +103,8 @@ export interface ContractorDetail extends ContractorRow {
 }
 export interface ContractorSummary { pending: number; approved: number; suspended: number; rejected: number; total: number }
 export interface ContractorCampaign { id: string; name: string; code: string; scans: number; signups: number; is_active: boolean; created_at: string }
+export interface JoinOptions { categories: { id: string; name: string }[]; countries: { code: CountryCode; name: string }[]; ref_valid: boolean }
+
 /* ---------- bookings ---------- */
 export type BookingStatus = 'pending_payment' | 'confirmed' | 'assigned' | 'in_progress' | 'completed' | 'cancelled' | 'refunded' | 'quote_requested' | 'quote_sent'
 export interface BookingRow {
@@ -115,18 +117,33 @@ export interface BookingRow {
   created_at: string
 }
 export interface BookingEventRow { id: string; type: string; from_status: BookingStatus | null; to_status: BookingStatus | null; actor: 'customer' | 'admin' | 'system'; note: string | null; created_at: string }
+export interface CancelQuote { allowed: boolean; tier: 'free' | 'partial' | 'none'; fee_percent: number; currency: string; paid: number; fee: number; refund: number; message: string }
+export interface BookingPolicy { free_cancel_hours: number; late_cancel_hours: number; late_cancel_fee_percent: number; free_reschedules: number; max_extra_hours: number }
+export interface BookingPaymentRow {
+  id: string; provider: 'stripe' | 'paypal'; purpose: 'booking' | 'extra_hours'; hours: number | null; status: 'requires_payment' | 'succeeded' | 'failed' | 'refunded' | 'partially_refunded'
+  amount: string; currency: string; card_brand: string | null; card_last4: string | null
+  refunded_total: string; failure_message: string | null; paid_at: string | null; stripe_payment_intent_id: string | null
+}
 export interface BookingDetail extends BookingRow {
   address_line1: string; address_line2: string | null; postal_code: string; instructions: string | null; notes: string | null
   customer_phone: string | null; admin_notes: string | null
   subtotal: string; discount_total: string; tax_total: string; base_price: string | null; included_hours: number | null; additional_hour_price: string | null
   promo_code: string | null; assigned_at: string | null; completed_at: string | null; cancelled_at: string | null
+  payment: BookingPaymentRow | null; payments: BookingPaymentRow[]
+  extra_hours: number; reschedule_count: number
+  cancel_quote: CancelQuote | null; refundable: number
   events: BookingEventRow[]
 }
 export type BookingSummary = Record<'all' | BookingStatus, number>
 export interface ContractorOption { id: string; name: string; type: ContractorType; phone: string; email: string; covers_area: boolean }
 
-export interface JoinOptions {
-  categories: { id: string; name: string }[]
-  countries: { code: CountryCode; name: string }[]
-  ref_valid: boolean
+export type PaymentFilter = '' | 'paid' | 'refunded' | 'failed' | 'unpaid'
+export interface PaymentRow {
+  id: string; booking_id: string; reference: string | null; customer_name: string; customer_email: string | null; service_name: string | null
+  provider: 'stripe' | 'paypal'; purpose: 'booking' | 'extra_hours'; hours: number | null
+  state: 'paid' | 'partially_refunded' | 'refunded' | 'failed' | 'unpaid'; currency: string
+  amount: number; refunded_total: number; net: number; card: string; stripe_payment_intent_id: string | null; failure_message: string | null
+  date: string | null; paid_at: string | null; created_at: string
 }
+export interface PaymentGateway { id: string; label: string; on: boolean; mode: 'live' | 'test' }
+export interface PaymentTotals { collected: number; refunded: number; net: number; paid_count: number; count: number }
