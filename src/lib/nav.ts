@@ -1,4 +1,4 @@
-import { Building2, Layers, LayoutDashboard, LifeBuoy, Image, Tag, CalendarCheck, MessageSquare, QrCode, Receipt, Settings, ShieldCheck, SlidersHorizontal, UserCircle, UserCog, UserMinus, Users, Wrench } from 'lucide-vue-next'
+import { Building2, Layers, LayoutDashboard, LifeBuoy, Image, Tag, CalendarCheck, MessageSquare, QrCode, Receipt, Settings, ShieldCheck, SlidersHorizontal, UserCircle, UserCog, UserMinus, Users, Wallet, Wrench } from 'lucide-vue-next'
 import type { Component } from 'vue'
 
 export interface NavItem { to: string; label: string; icon: Component; permission?: string | string[]; badge?: 'chat' }
@@ -17,6 +17,7 @@ export const navGroups: NavGroup[] = [
       { to: '/categories', label: 'Categories', icon: Layers, permission: 'categories.view' },
       { to: '/bookings', label: 'Bookings', icon: CalendarCheck, permission: 'bookings.view' },
       { to: '/payments', label: 'Payments', icon: Receipt, permission: 'bookings.view' },
+      { to: '/payouts', label: 'Payouts', icon: Wallet, permission: 'payouts.view' },
       { to: '/promo-codes', label: 'Promo codes', icon: Tag, permission: 'promos.view' },
       { to: '/banners', label: 'Banners', icon: Image, permission: 'banners.view' },
       { to: '/booking-policy', label: 'Booking policy', icon: SlidersHorizontal, permission: 'bookings.manage' },

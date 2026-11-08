@@ -161,3 +161,10 @@ export interface PromoBanner {
   id: string; title: string; subtitle: string | null; image_url: string | null; link_type: BannerLink; link_value: string | null
   promo_code: string | null; starts_on: string | null; ends_on: string | null; sort_order: number; is_active: boolean
 }
+
+export type PayoutMethod = 'bank_transfer' | 'etransfer' | 'paypal' | 'other'
+export interface PayoutDetails {
+  method: PayoutMethod; method_label: string; country: 'CA' | 'US' | 'GB' | null
+  holder_name: string; bank_name: string | null; details: Record<string, string>
+  summary: string; revealed: boolean; updated_at: string | null
+}
