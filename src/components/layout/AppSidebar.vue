@@ -67,8 +67,8 @@ nav { flex: 1; overflow-y: auto; display: grid; align-content: start; gap: 18px;
 .status small { display: block; color: var(--text-mute); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
 .dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--syn-green-text); box-shadow: 0 0 0 4px rgba(85, 212, 0, 0.18); }
 @media (max-width: 1023px) {
-  .sidebar { transform: translateX(-100%); width: min(86vw, 300px); box-shadow: 30px 0 60px -20px rgba(0, 0, 0, 0.6); }
-  .sidebar.open { transform: none; }
+  .sidebar { transform: translateX(-100%); width: min(86vw, 300px); }
+  .sidebar.open { transform: none; box-shadow: 30px 0 60px -20px rgba(0, 0, 0, 0.6); }
   .close { display: inline-grid; }
 }
 </style>
