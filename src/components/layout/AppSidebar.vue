@@ -1,74 +1,165 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { X } from 'lucide-vue-next'
-import BrandMark from '@/components/BrandMark.vue'
-import { useUiStore } from '@/stores/ui'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { Bell, BellRing, ChevronDown, LogOut, Menu, Search, Settings, UserRound } from 'lucide-vue-next'
+import UserAvatar from '@/components/ui/UserAvatar.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useUiStore } from '@/stores/ui'
 import { useChatStore } from '@/stores/chat'
-import { navGroups } from '@/lib/nav'
+import { confirm } from '@/composables/useConfirm'
+import { toast } from '@/composables/useToast'
+import { enableAdminPush, pushState, pushSupported } from '@/lib/push'
+import { parseError } from '@/lib/errors'
 
-const ui = useUiStore()
 const auth = useAuthStore()
+const ui = useUiStore()
+const router = useRouter()
 const chat = useChatStore()
+const pushOn = computed(() => pushState.registered)
+const signingOut = ref(false)
 
-const groups = computed(() =>
-  navGroups.map((g) => ({ ...g, items: g.items.filter((i) => auth.can(i.permission)) })).filter((g) => g.items.length),
+const open = ref(false)
+const root = ref<HTMLElement | null>(null)
+const initials = computed(() =>
+  (auth.user?.name ?? 'Admin').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase(),
 )
+
+function onDocClick(e: MouseEvent) {
+  if (root.value && !root.value.contains(e.target as Node)) open.value = false
+}
+function onKey(e: KeyboardEvent) {
+  if (e.key === 'Escape') open.value = false
+}
+onMounted(() => {
+  document.addEventListener('click', onDocClick)
+  document.addEventListener('keydown', onKey)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocClick)
+  document.removeEventListener('keydown', onKey)
+})
+
+async function signOut() {
+  open.value = false
+  const yes = await confirm({
+    title: 'Sign out?',
+    message: 'You will need your email and password to get back in.',
+    confirmText: 'Sign out',
+    tone: 'danger',
+  })
+  if (!yes) return
+  signingOut.value = true
+  await auth.logout()
+  router.replace({ name: 'login' })
+}
+
+async function bell() {
+  if (!pushSupported()) { toast.info('Browser alerts are not set up for this dashboard.'); return }
+  if (pushOn.value) { router.push('/chat'); return }
+  try {
+    const r = await enableAdminPush()
+    if (r === 'enabled') toast.success('Browser alerts are on for new messages.')
+    else if (r === 'denied') toast.error('Alerts are blocked. Allow notifications for this site in your browser settings.')
+  } catch (e) {
+    console.error('Push setup failed:', e)
+    // API errors get the friendly message; Firebase/service-worker errors show what actually went wrong
+    toast.error(e instanceof Error && !('isAxiosError' in e) ? `Alerts could not be turned on: ${e.message}` : parseError(e).message)
+  }
+}
 </script>
 
 <template>
-  <aside id="sidebar" class="sidebar" :class="{ open: ui.sidebarOpen }" aria-label="Main navigation">
-    <div class="top">
-      <RouterLink to="/" class="brand"><BrandMark :size="34" /><span>Synsyma</span></RouterLink>
-      <button class="icon-btn close" type="button" aria-label="Close menu" @click="ui.closeSidebar()"><X :size="18" /></button>
-    </div>
+  <header class="topbar">
+    <button class="icon-btn menu" type="button" aria-label="Open menu" aria-controls="sidebar" :aria-expanded="ui.sidebarOpen" @click="ui.toggleSidebar()">
+      <Menu :size="20" />
+    </button>
 
-    <nav>
-      <div v-for="g in groups" :key="g.title" class="group">
-        <p class="group-title">{{ g.title }}</p>
-        <RouterLink v-for="i in g.items" :key="i.to" :to="i.to" class="link" active-class="active">
-          <component :is="i.icon" :size="19" />
-          <span>{{ i.label }}</span>
-          <b v-if="i.badge === 'chat' && chat.unread" class="badge" :aria-label="`${chat.unread} unread conversations`">{{ chat.unread > 99 ? '99+' : chat.unread }}</b>
-        </RouterLink>
+    <label class="search field">
+      <Search :size="18" />
+      <input type="search" placeholder="Search..." aria-label="Search" />
+    </label>
+
+    <div class="actions">
+      <button class="icon-btn bell" type="button" :aria-label="pushOn ? `Messages, ${chat.unread} unread` : 'Turn on message alerts'" :title="pushOn ? 'Messages' : 'Turn on message alerts'" @click="bell">
+        <BellRing v-if="pushOn" :size="19" /><Bell v-else :size="19" />
+        <span v-if="chat.unread" class="pip" />
+      </button>
+
+      <div ref="root" class="user">
+        <button class="user-btn" type="button" aria-haspopup="menu" :aria-expanded="open" @click="open = !open">
+          <UserAvatar :name="auth.user?.name" :src="auth.user?.photo_url" :size="36" />
+          <span class="who">
+            <strong>{{ auth.user?.name ?? 'Admin' }}</strong>
+            <small>{{ (auth.user?.role ?? 'Administrator').replace(/_/g, ' ') }}</small>
+          </span>
+          <ChevronDown :size="16" class="chev" :class="{ flip: open }" />
+        </button>
+
+        <div v-if="open" class="menu-pop" role="menu">
+          <div class="me">
+            <strong>{{ auth.user?.name }}</strong>
+            <small>{{ auth.user?.email }}</small>
+          </div>
+          <RouterLink to="/profile" role="menuitem" @click="open = false"><UserRound :size="16" /> My profile</RouterLink>
+          <RouterLink to="/settings" role="menuitem" @click="open = false"><Settings :size="16" /> Settings</RouterLink>
+          <button type="button" role="menuitem" class="out" @click="signOut"><LogOut :size="16" /> {{ signingOut ? 'Signing out' : 'Sign out' }}</button>
+        </div>
       </div>
-    </nav>
-
-    <div class="status">
-      <span class="dot" />
-      <div><strong>{{ auth.user?.role ? auth.user.role.replace(/_/g, ' ') : 'Administrator' }}</strong><small>{{ auth.user?.email }}</small></div>
     </div>
-  </aside>
+  </header>
 </template>
 
 <style scoped>
-.sidebar {
-  --text: #fff; --text-dim: rgba(255, 255, 255, 0.72); --text-mute: rgba(255, 255, 255, 0.56); --line: rgba(255, 255, 255, 0.08);
-  color: #fff; position: fixed; inset: 0 auto 0 0; z-index: 40; width: var(--sidebar-w);
-  display: flex; flex-direction: column; gap: 8px; padding: 18px 14px;
-  background: linear-gradient(180deg, #071d52, #04143B); border-right: 1px solid var(--line);
-  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+.topbar {
+  position: sticky; top: 0; z-index: 30; height: var(--topbar-h);
+  display: flex; align-items: center; gap: 12px; padding: 0 28px;
+  background: rgba(255, 255, 255, 0.86); backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
 }
-.top { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px 18px; }
-.brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; font-size: 20px; }
-.close { display: none; background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.12); color: #fff; }
-nav { flex: 1; overflow-y: auto; display: grid; align-content: start; gap: 18px; }
-.group { display: grid; gap: 4px; }
-.group-title { padding: 0 14px 4px; font-size: 13px; font-weight: 600; color: var(--text-mute); }
-.link { position: relative; display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 14px; border-radius: var(--radius-md); color: var(--text-dim); font-weight: 600; transition: background 0.15s, color 0.15s; }
-.link:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
-.link.active { background: rgba(0, 102, 255, 0.18); color: #fff; }
-.link.active svg { color: var(--syn-blue-light); }
-.link.active::before { content: ''; position: absolute; left: -14px; top: 10px; bottom: 10px; width: 4px; border-radius: 0 4px 4px 0; background: var(--grad-blue-full); }
-.badge { margin-left: auto; min-width: 22px; padding: 1px 7px; border-radius: 999px; text-align: center; font-size: 12px; font-weight: 700; color: var(--syn-navy); background: var(--grad-green); }
-.status { display: flex; align-items: center; gap: 12px; padding: 12px 14px; min-width: 0; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); border-radius: var(--radius-md); }
-.status > div { min-width: 0; }
-.status strong { display: block; font-size: 13px; text-transform: capitalize; }
-.status small { display: block; color: var(--text-mute); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
-.dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--syn-green-text); box-shadow: 0 0 0 4px rgba(85, 212, 0, 0.18); }
+.menu { display: none; flex: none; }
+.search { flex: 1; min-width: 0; max-width: 420px; height: 42px; }
+.search input { min-width: 0; width: 100%; }
+.actions { margin-left: auto; flex: none; display: flex; align-items: center; gap: 10px; }
+.bell { position: relative; }
+.pip { position: absolute; top: 10px; right: 11px; width: 8px; height: 8px; border-radius: 50%; background: var(--syn-green-text); box-shadow: 0 0 0 2px #fff; }
+
+.user { position: relative; }
+.user-btn {
+  display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 10px 0 5px;
+  background: #fff; border: 1px solid var(--line); border-radius: 999px;
+}
+.user-btn:hover { background: rgba(4, 20, 59, 0.04); }
+.avatar {
+  display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%;
+  background: var(--grad-blue); color: #fff; font-size: 13px; font-weight: 700;
+}
+.who { display: grid; text-align: left; line-height: 1.2; }
+.who strong { font-size: 14px; }
+.who small { color: var(--text-mute); font-size: 12px; text-transform: capitalize; }
+.chev { color: var(--text-mute); transition: transform 0.2s; }
+.chev.flip { transform: rotate(180deg); }
+
+.menu-pop {
+  position: absolute; right: 0; top: calc(100% + 10px); width: 230px; padding: 8px;
+  background: #fff; border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: 0 24px 48px -16px rgba(4, 20, 59, 0.28);
+}
+.me { display: grid; padding: 10px 12px 12px; margin-bottom: 6px; border-bottom: 1px solid var(--line); }
+.me small { color: var(--text-mute); overflow: hidden; text-overflow: ellipsis; }
+.menu-pop a, .menu-pop button {
+  display: flex; align-items: center; gap: 10px; width: 100%; height: 40px; padding: 0 12px;
+  background: none; border: 0; border-radius: 10px; font-weight: 600; text-align: left;
+}
+.menu-pop a:hover, .menu-pop button:hover { background: rgba(4, 20, 59, 0.06); }
+.menu-pop .out { color: var(--danger); }
+
 @media (max-width: 1023px) {
-  .sidebar { transform: translateX(-100%); width: min(86vw, 300px); }
-  .sidebar.open { transform: none; box-shadow: 30px 0 60px -20px rgba(0, 0, 0, 0.6); }
-  .close { display: inline-grid; }
+  .menu { display: inline-grid; }
+  .topbar { padding: 0 16px; }
+}
+@media (max-width: 640px) {
+  .who, .chev { display: none; }
+  .user-btn { padding: 0 5px; }
+  .topbar { gap: 8px; padding: 0 12px; }
 }
 </style>
