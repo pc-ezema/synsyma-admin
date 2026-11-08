@@ -168,3 +168,24 @@ export interface PayoutDetails {
   holder_name: string; bank_name: string | null; details: Record<string, string>
   summary: string; revealed: boolean; updated_at: string | null
 }
+
+/* ---------- contractor payouts ---------- */
+export interface PayoutSettings { default_commission_percent: number; hold_days: number }
+export interface PayoutRow {
+  contractor_id: string; name: string; email: string | null; phone: string | null
+  payable: number; on_hold: number; paid: number; entries: number; last_paid_at: string | null
+}
+export interface PayoutTotals { payable: number; on_hold: number; paid: number }
+export type PayoutShow = '' | 'owed' | 'recover'
+export interface LedgerEntry {
+  id: string; type: 'earning' | 'adjustment'; state: 'paid' | 'payable' | 'hold'
+  amount: number; gross: number | null; commission_percent: number | null; currency: string; note: string | null
+  booking_id: string | null; reference: string | null; service_name: string | null
+  payable_at: string; payout_id: string | null; created_at: string
+}
+export interface PayoutRecord { id: string; amount: number; currency: string; reference: string; note: string | null; paid_by_name: string | null; paid_at: string; entries_count: number | null }
+export interface PayoutContractor {
+  contractor: { id: string; name: string; email: string | null; phone: string | null; commission_percent: number | null }
+  payable: number; on_hold: number; paid: number; entries: LedgerEntry[]; payouts: PayoutRecord[]; default_commission_percent: number
+}
+export interface BookingLedger { contractor_share: number; commission_percent: number; customer_paid: number; state: 'paid' | 'payable' | 'hold'; payable_at: string }
