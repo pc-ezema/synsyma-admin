@@ -116,9 +116,10 @@ async function bell() {
   background: rgba(255, 255, 255, 0.86); backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--line);
 }
-.menu { display: none; }
-.search { flex: 1; max-width: 420px; height: 42px; }
-.actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.menu { display: none; flex: none; }
+.search { flex: 1; min-width: 0; max-width: 420px; height: 42px; }
+.search input { min-width: 0; width: 100%; }
+.actions { margin-left: auto; flex: none; display: flex; align-items: center; gap: 10px; }
 .bell { position: relative; }
 .pip { position: absolute; top: 10px; right: 11px; width: 8px; height: 8px; border-radius: 50%; background: var(--syn-green-text); box-shadow: 0 0 0 2px #fff; }
 
@@ -159,5 +160,6 @@ async function bell() {
 @media (max-width: 640px) {
   .who, .chev { display: none; }
   .user-btn { padding: 0 5px; }
+  .topbar { gap: 8px; padding: 0 12px; }
 }
 </style>
