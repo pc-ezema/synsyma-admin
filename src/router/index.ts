@@ -31,6 +31,7 @@ const router = createRouter({
         { path: 'booking-policy', name: 'booking-policy', component: () => import('@/views/BookingPolicyView.vue'), meta: { title: 'Booking policy', permission: 'bookings.manage' } },
         { path: 'payouts', name: 'payouts', component: () => import('@/views/PayoutsView.vue'), meta: { title: 'Payouts', permission: 'payouts.view' } },
         { path: 'payouts/:id', name: 'payout', component: () => import('@/views/PayoutDetailView.vue'), meta: { title: 'Payout', permission: 'payouts.view' } },
+        { path: 'reviews', name: 'reviews', component: () => import('@/views/ReviewsView.vue'), meta: { title: 'Reviews', permission: 'reviews.view' } },
         { path: 'promo-codes', name: 'promo-codes', component: () => import('@/views/PromoCodesView.vue'), meta: { title: 'Promo codes', permission: 'promos.view' } },
         { path: 'banners', name: 'banners', component: () => import('@/views/BannersView.vue'), meta: { title: 'Banners', permission: 'banners.view' } },
         { path: 'payments', name: 'payments', component: () => import('@/views/PaymentsView.vue'), meta: { title: 'Payments', permission: 'bookings.view' } },

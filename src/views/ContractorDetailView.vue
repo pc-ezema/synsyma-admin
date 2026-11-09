@@ -12,8 +12,9 @@ import { countryName } from '@/lib/regions'
 import { fileSize, kindLabel, statusLabel, statusPill } from '@/lib/contractors'
 import Modal from '@/components/ui/Modal.vue'
 import ContractorEditModal from '@/components/contractors/ContractorEditModal.vue'
-import type { DocKind, ContractorDetail, ContractorDoc, ServiceCategory } from '@/types'
 import PayoutDetailsCard from '@/components/payouts/PayoutDetailsCard.vue'
+import ContractorRatingCard from '@/components/reviews/ContractorRatingCard.vue'
+import type { DocKind, ContractorDetail, ContractorDoc, ServiceCategory } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -21,6 +22,7 @@ const auth = useAuthStore()
 const canUpdate = computed(() => auth.can('contractors.update'))
 const canDelete = computed(() => auth.can('contractors.delete'))
 const canSeePayout = computed(() => auth.can('payouts.view'))
+const canSeeRatings = computed(() => auth.can('reviews.view'))
 const id = String(route.params.id)
 
 const p = ref<ContractorDetail | null>(null)
@@ -168,6 +170,8 @@ async function removeDoc(d: ContractorDoc) {
           <p>{{ p.commission_percent !== null ? `${p.commission_percent}% for this contractor` : 'Platform default' }}</p>
           <template v-if="p.admin_notes"><h3>Private notes</h3><p class="about">{{ p.admin_notes }}</p></template>
         </section>
+
+        <ContractorRatingCard v-if="canSeeRatings" class="wide" :contractor-id="p.id" />
 
         <PayoutDetailsCard v-if="canSeePayout" class="wide" :contractor-id="p.id" :contractor-name="p.name" />
 

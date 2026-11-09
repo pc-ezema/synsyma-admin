@@ -11,6 +11,7 @@ import { formatDateTime } from '@/lib/format'
 import { countryName } from '@/lib/regions'
 import { eventActor, localWhen, money, statusLabel, statusPill } from '@/lib/bookings'
 import Modal from '@/components/ui/Modal.vue'
+import StarRating from '@/components/reviews/StarRating.vue'
 import type { BookingDetail, BookingStatus, ContractorOption } from '@/types'
 
 const route = useRoute()
@@ -37,10 +38,10 @@ const cur = (v: string | number | null | undefined) => (v === null || v === unde
 const paymentLabel: Record<string, string> = { requires_payment: 'Not paid', succeeded: 'Paid', failed: 'Failed', refunded: 'Refunded', partially_refunded: 'Partly refunded' }
 
 // ---- status changes ----
-async function setStatus(status: BookingStatus, note?: string, refund?: RefundChoice): Promise<boolean> {
+async function setStatus(status: BookingStatus, note?: string, refund?: RefundChoice, completionNote?: string): Promise<boolean> {
   busy.value = true
   try {
-    const res = await api.patch<{ message: string; data: BookingDetail }>(`/admin/bookings/${id}/status`, { status, note, refund })
+    const res = await api.patch<{ message: string; data: BookingDetail }>(`/admin/bookings/${id}/status`, { status, note, refund, completion_note: completionNote })
     b.value = res.data.data; toast.success(res.data.message); return true
   } catch (e) { const err = parseError(e); if (why.open) why.error = err.message; else toast.error(err.message); return false }
   finally { busy.value = false }
@@ -53,9 +54,15 @@ async function start() {
   const yes = await confirm({ title: 'Start this job?', message: 'Use this when the contractor has arrived and begun.', confirmText: 'Mark in progress', tone: 'primary' })
   if (yes) await setStatus('in_progress')
 }
-async function complete() {
-  const yes = await confirm({ title: 'Mark as completed?', message: 'The job is finished. This cannot be undone.', confirmText: 'Mark completed', tone: 'primary' })
-  if (yes) await setStatus('completed')
+// ---- complete (optional note for the customer) ----
+const cp = reactive({ open: false, note: '', error: '', saving: false })
+function complete() { Object.assign(cp, { open: true, note: '', error: '', saving: false }) }
+async function submitComplete() {
+  cp.saving = true; cp.error = ''
+  const ok = await setStatus('completed', undefined, undefined, cp.note.trim() || undefined)
+  cp.saving = false
+  if (ok) cp.open = false
+  else cp.error = 'Could not mark this job completed. Close this and try again.'
 }
 async function unassign() {
   const yes = await confirm({ title: 'Remove the contractor?', message: 'The booking goes back to "Needs contractor".', confirmText: 'Remove contractor', tone: 'danger' })
@@ -210,6 +217,7 @@ async function saveNotes() {
             <template v-if="b.extra_hours > 0"><dt>Extra hours</dt><dd>{{ b.extra_hours }} added by the customer</dd></template>
             <template v-if="b.reschedule_count > 0"><dt>Rescheduled</dt><dd>{{ b.reschedule_count }} {{ b.reschedule_count === 1 ? 'time' : 'times' }} by the customer</dd></template>
             <dt>Customer notes</dt><dd>{{ b.notes || 'None' }}</dd>
+            <template v-if="b.completion_note"><dt>Completion note</dt><dd class="pre">{{ b.completion_note }}<small>Shown to the customer</small></dd></template>
           </dl>
         </section>
 
@@ -267,6 +275,13 @@ async function saveNotes() {
           <button v-if="canManage" type="button" class="btn btn-ghost btn-sm save" :disabled="savingNotes || notes === (b.admin_notes ?? '')" @click="saveNotes"><Loader2 v-if="savingNotes" :size="15" class="spin" /> Save notes</button>
         </section>
 
+        <section v-if="b.review" class="card box wide">
+          <h2>Customer review</h2>
+          <p><StarRating :rating="b.review.rating" :size="18" /> <strong>{{ b.review.rating }} / 5</strong> <span v-if="b.review.is_hidden" class="pill grey">Hidden</span></p>
+          <p v-if="b.review.comment" class="pre">{{ b.review.comment }}</p><p v-else class="muted">No comment.</p>
+          <p class="muted">{{ formatDateTime(b.review.created_at) }}<template v-if="b.review.edited_at"> · edited {{ formatDateTime(b.review.edited_at) }}</template>. Hide a review from the <router-link to="/reviews" class="lnk">Reviews</router-link> page.</p>
+        </section>
+
         <section class="card box wide">
           <h2>Timeline</h2>
           <ol class="tl">
@@ -282,6 +297,8 @@ async function saveNotes() {
                 <template v-else-if="e.type === 'quote_declined'">Quote declined</template>
                 <template v-else-if="e.type === 'quote_expired'">Quote expired</template>
                 <template v-else-if="e.type === 'extra_hours'">Extra hours added</template>
+                <template v-else-if="e.type === 'review_added'">Customer left a review</template>
+                <template v-else-if="e.type === 'review_edited'">Customer changed their review</template>
                 <template v-else-if="e.type === 'refund'">Refund</template>
                 <template v-else-if="e.type === 'payment_failed'">Payment failed</template>
                 <template v-else-if="e.type === 'payment_late'">Late payment refunded</template>
@@ -329,6 +346,19 @@ async function saveNotes() {
         <template #footer>
           <button type="button" class="btn btn-ghost" @click="why.open = false">Keep booking</button>
           <button type="submit" form="cancel-form" class="btn btn-danger" :disabled="why.saving"><Loader2 v-if="why.saving" :size="16" class="spin" /> Cancel booking</button>
+        </template>
+      </Modal>
+
+      <Modal :open="cp.open" title="Mark this job completed" :width="480" @close="cp.open = false">
+        <form id="complete-form" novalidate @submit.prevent="submitComplete">
+          <p class="muted">The customer is told the job is done and sees a receipt in the app. {{ b.contractor_id ? 'The contractor\'s earning is created now.' : 'No contractor is assigned, so no earning is created.' }} This cannot be undone.</p>
+          <label class="label" for="cp-note">Note for the customer <span class="muted">(optional)</span></label>
+          <textarea id="cp-note" v-model="cp.note" class="input ta" rows="4" maxlength="1000" placeholder="What was done, anything they should look out for, care tips" />
+          <p v-if="cp.error" class="err-text">{{ cp.error }}</p>
+        </form>
+        <template #footer>
+          <button type="button" class="btn btn-ghost" @click="cp.open = false">Not yet</button>
+          <button type="submit" form="complete-form" class="btn btn-primary" :disabled="cp.saving"><Loader2 v-if="cp.saving" :size="16" class="spin" /> Mark completed</button>
         </template>
       </Modal>
 

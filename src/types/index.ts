@@ -127,6 +127,8 @@ export interface BookingPaymentRow {
 export interface BookingDetail extends BookingRow {
   quote?: BookingQuote | null
   ledger?: BookingLedger | null
+  review?: BookingReview | null
+  completion_note?: string | null
   address_line1: string; address_line2: string | null; postal_code: string; instructions: string | null; notes: string | null
   customer_phone: string | null; admin_notes: string | null
   subtotal: string; discount_total: string; tax_total: string; base_price: string | null; included_hours: number | null; additional_hour_price: string | null
@@ -198,3 +200,12 @@ export interface PayoutContractor {
   payable: number; on_hold: number; paid: number; entries: LedgerEntry[]; payouts: PayoutRecord[]; default_commission_percent: number
 }
 export interface BookingLedger { contractor_share: number; commission_percent: number; customer_paid: number; state: 'paid' | 'payable' | 'hold'; payable_at: string }
+
+/* ---------- reviews ---------- */
+export interface BookingReview { id: string; rating: number; comment: string | null; created_at: string; edited_at: string | null; is_hidden?: boolean; hidden_reason?: string | null }
+export interface ReviewRow extends BookingReview {
+  is_hidden: boolean; hidden_reason: string | null
+  booking_id: string; reference: string | null; service_name: string | null
+  customer_name: string | null; customer_email: string | null; contractor_id: string | null; contractor_name: string | null
+}
+export interface ReviewSummary { average: number | null; count: number; hidden: number; distribution: Record<string, number> }
