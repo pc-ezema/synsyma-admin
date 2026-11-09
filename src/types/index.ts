@@ -125,6 +125,8 @@ export interface BookingPaymentRow {
   refunded_total: string; failure_message: string | null; paid_at: string | null; stripe_payment_intent_id: string | null
 }
 export interface BookingDetail extends BookingRow {
+  quote?: BookingQuote | null
+  ledger?: BookingLedger | null
   address_line1: string; address_line2: string | null; postal_code: string; instructions: string | null; notes: string | null
   customer_phone: string | null; admin_notes: string | null
   subtotal: string; discount_total: string; tax_total: string; base_price: string | null; included_hours: number | null; additional_hour_price: string | null
@@ -134,6 +136,13 @@ export interface BookingDetail extends BookingRow {
   cancel_quote: CancelQuote | null; refundable: number
   events: BookingEventRow[]
 }
+
+export type QuoteState = 'requested' | 'sent' | 'expired' | 'accepted' | 'closed'
+export interface BookingQuote {
+  state: QuoteState; price: number | null; price_label: string | null; message: string | null
+  sent_at: string | null; expires_at: string | null; accepted_at: string | null; can_accept: boolean; can_decline: boolean
+}
+
 export type BookingSummary = Record<'all' | BookingStatus, number>
 export interface ContractorOption { id: string; name: string; type: ContractorType; phone: string; email: string; covers_area: boolean }
 

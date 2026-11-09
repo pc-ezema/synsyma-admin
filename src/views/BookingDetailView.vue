@@ -104,6 +104,31 @@ async function submitRefund() {
   } catch (e) { rf.error = parseError(e).message } finally { rf.saving = false }
 }
 
+// ---- quote ----
+const qt = reactive({ open: false, saving: false, price: '', days: 7, message: '', errors: {} as Record<string, string>, error: '' })
+const quoteStateLabel: Record<string, string> = { requested: 'Waiting for your price', sent: 'Sent, waiting for the customer', expired: 'Expired', accepted: 'Accepted', closed: 'Closed' }
+function openQuote() {
+  const q = b.value?.quote
+  Object.assign(qt, { open: true, saving: false, errors: {}, error: '', price: q?.price ? String(q.price) : '', days: 7, message: q?.message ?? '' })
+}
+async function submitQuote() {
+  qt.errors = {}; qt.error = ''
+  const n = Number(qt.price)
+  if (!qt.price.trim() || !Number.isFinite(n) || n <= 0) { qt.errors.price = 'Enter the price for this job.'; return }
+  qt.saving = true
+  try {
+    const res = await api.post<{ message: string; data: BookingDetail }>(`/admin/bookings/${id}/quote`, { price: n, valid_days: qt.days, message: qt.message.trim() || null })
+    b.value = res.data.data; toast.success(res.data.message); qt.open = false
+  } catch (e) { const pe = parseError(e); qt.errors = pe.fields; if (!Object.keys(pe.fields).length) qt.error = pe.message } finally { qt.saving = false }
+}
+async function withdrawQuote() {
+  const yes = await confirm({ title: 'Withdraw this quote?', message: 'The customer can no longer accept it. The request stays open so you can send a new price.', confirmText: 'Withdraw quote', tone: 'danger' })
+  if (!yes) return
+  busy.value = true
+  try { const res = await api.delete<{ message: string; data: BookingDetail }>(`/admin/bookings/${id}/quote`); b.value = res.data.data; toast.success(res.data.message) }
+  catch (e) { toast.error(parseError(e).message) } finally { busy.value = false }
+}
+
 // ---- assign ----
 const assign = reactive({ open: false, loading: false, saving: false, error: '', picked: '', options: [] as ContractorOption[] })
 async function openAssign() {
@@ -142,6 +167,8 @@ async function saveNotes() {
           <p>{{ b.reference }} · booked {{ formatDateTime(b.created_at) }}</p>
         </div>
         <div v-if="canManage" class="acts">
+          <button v-if="b.status === 'quote_requested' || (b.status === 'quote_sent' && b.quote)" type="button" class="btn btn-primary" :disabled="busy" @click="openQuote">{{ b.status === 'quote_sent' ? 'Revise quote' : 'Send quote' }}</button>
+          <button v-if="b.status === 'quote_sent'" type="button" class="btn btn-ghost" :disabled="busy" @click="withdrawQuote">Withdraw quote</button>
           <button v-if="b.status === 'pending_payment'" type="button" class="btn btn-primary" :disabled="busy" @click="markConfirmed">Mark confirmed</button>
           <button v-if="b.status === 'confirmed'" type="button" class="btn btn-primary" :disabled="busy" @click="openAssign">Assign contractor</button>
           <button v-if="b.status === 'assigned'" type="button" class="btn btn-primary" :disabled="busy" @click="start">Start job</button>
@@ -157,6 +184,19 @@ async function saveNotes() {
       <p v-if="b.status === 'confirmed'" class="note ok" role="status">This booking is confirmed and waiting for a contractor.</p>
 
       <div class="grid">
+        <section v-if="b.quote" class="card box wide">
+          <h2>Quote</h2>
+          <dl>
+            <dt>State</dt><dd><span class="pill" :class="{ green: b.quote.state === 'accepted', grey: b.quote.state === 'closed' || b.quote.state === 'expired' }">{{ quoteStateLabel[b.quote.state] }}</span></dd>
+            <template v-if="b.quote.price_label"><dt>Price</dt><dd><strong>{{ b.quote.price_label }}</strong><small>Before any extras, no tax added</small></dd></template>
+            <template v-if="b.quote.sent_at"><dt>Sent</dt><dd>{{ formatDateTime(b.quote.sent_at) }}</dd></template>
+            <template v-if="b.quote.expires_at"><dt>{{ b.quote.state === 'expired' ? 'Expired' : 'Open until' }}</dt><dd>{{ formatDateTime(b.quote.expires_at) }}</dd></template>
+            <template v-if="b.quote.accepted_at"><dt>Accepted</dt><dd>{{ formatDateTime(b.quote.accepted_at) }}</dd></template>
+            <template v-if="b.quote.message"><dt>Your message</dt><dd class="pre">{{ b.quote.message }}</dd></template>
+          </dl>
+          <p v-if="b.quote.state === 'requested'" class="muted hint">Read the customer's notes below, then use Send quote to set the price. They accept it in the app and pay.</p>
+        </section>
+
         <section class="card box">
           <h2>The job</h2>
           <dl>
@@ -165,7 +205,7 @@ async function saveNotes() {
             <dt>Pricing</dt><dd>
               <template v-if="b.price_type === 'hourly'">Hourly: {{ cur(b.base_price) }} covers the first {{ b.included_hours }} hours, then {{ cur(b.additional_hour_price) }} per added hour</template>
               <template v-else-if="b.price_type === 'fixed'">Fixed price</template>
-              <template v-else>Quote</template>
+              <template v-else>Quote<template v-if="b.quote?.price_label">: {{ b.quote.price_label }}</template></template>
             </dd>
             <template v-if="b.extra_hours > 0"><dt>Extra hours</dt><dd>{{ b.extra_hours }} added by the customer</dd></template>
             <template v-if="b.reschedule_count > 0"><dt>Rescheduled</dt><dd>{{ b.reschedule_count }} {{ b.reschedule_count === 1 ? 'time' : 'times' }} by the customer</dd></template>
@@ -204,6 +244,15 @@ async function saveNotes() {
             </dl>
           </template>
           <p v-else class="muted">No payment attempt yet.</p>
+          <template v-if="b.ledger">
+            <h3>Contractor earnings</h3>
+            <dl>
+              <dt>Customer paid</dt><dd>{{ cur(b.ledger.customer_paid) }}</dd>
+              <dt>Commission</dt><dd>{{ b.ledger.commission_percent }}%</dd>
+              <dt>Contractor share</dt><dd><strong>{{ cur(b.ledger.contractor_share) }}</strong></dd>
+              <dt>Payout</dt><dd>{{ b.ledger.state === 'paid' ? 'Paid' : b.ledger.state === 'payable' ? 'Ready to pay' : `On hold until ${formatDateTime(b.ledger.payable_at)}` }}</dd>
+            </dl>
+          </template>
         </section>
 
         <section class="card box">
@@ -226,6 +275,12 @@ async function saveNotes() {
                 <template v-if="e.type === 'created'">Booking created</template>
                 <template v-else-if="e.type === 'assigned'">Assigned to {{ e.note }}</template>
                 <template v-else-if="e.type === 'rescheduled'">Rescheduled</template>
+                <template v-else-if="e.type === 'quote_sent'">Quote sent</template>
+                <template v-else-if="e.type === 'quote_revised'">Quote revised</template>
+                <template v-else-if="e.type === 'quote_withdrawn'">Quote withdrawn</template>
+                <template v-else-if="e.type === 'quote_accepted'">Quote accepted</template>
+                <template v-else-if="e.type === 'quote_declined'">Quote declined</template>
+                <template v-else-if="e.type === 'quote_expired'">Quote expired</template>
                 <template v-else-if="e.type === 'extra_hours'">Extra hours added</template>
                 <template v-else-if="e.type === 'refund'">Refund</template>
                 <template v-else-if="e.type === 'payment_failed'">Payment failed</template>
@@ -274,6 +329,26 @@ async function saveNotes() {
         <template #footer>
           <button type="button" class="btn btn-ghost" @click="why.open = false">Keep booking</button>
           <button type="submit" form="cancel-form" class="btn btn-danger" :disabled="why.saving"><Loader2 v-if="why.saving" :size="16" class="spin" /> Cancel booking</button>
+        </template>
+      </Modal>
+
+      <Modal :open="qt.open" :title="b.status === 'quote_sent' ? 'Revise the quote' : 'Send a quote'" :width="480" @close="qt.open = false">
+        <form id="quote-form" novalidate @submit.prevent="submitQuote">
+          <p v-if="qt.error" class="err-text">{{ qt.error }}</p>
+          <p class="muted">The customer sees this price in the app and can accept or decline. Accepting lets them pay straight away. Prices are in {{ b.currency }} with no tax added.</p>
+          <label class="label" for="qt-price">Price ({{ b.currency }})</label>
+          <input id="qt-price" v-model="qt.price" class="input" :class="{ invalid: qt.errors.price }" inputmode="decimal" placeholder="e.g. 480.00" autocomplete="off">
+          <p v-if="qt.errors.price" class="err-text">{{ qt.errors.price }}</p>
+          <label class="label" for="qt-days">Stays open for</label>
+          <select id="qt-days" v-model.number="qt.days" class="select"><option :value="3">3 days</option><option :value="7">7 days</option><option :value="14">14 days</option><option :value="30">30 days</option></select>
+          <p v-if="qt.errors.valid_days" class="err-text">{{ qt.errors.valid_days }}</p>
+          <label class="label" for="qt-msg">Message to the customer <span class="muted">(optional)</span></label>
+          <textarea id="qt-msg" v-model="qt.message" class="input ta" rows="4" maxlength="1000" placeholder="What the price covers, how long it should take, anything you need from them" />
+          <p v-if="qt.errors.message" class="err-text">{{ qt.errors.message }}</p>
+        </form>
+        <template #footer>
+          <button type="button" class="btn btn-ghost" @click="qt.open = false">Cancel</button>
+          <button type="submit" form="quote-form" class="btn btn-primary" :disabled="qt.saving"><Loader2 v-if="qt.saving" :size="16" class="spin" /> {{ b.status === 'quote_sent' ? 'Send revised quote' : 'Send quote' }}</button>
         </template>
       </Modal>
 
@@ -347,4 +422,6 @@ dd a, .lnk { color: var(--blue-ink); text-decoration: none; } dd a:hover, .lnk:h
 .opt input { accent-color: var(--blue); width: 18px; height: 18px; }
 .ob { flex: 1; min-width: 0; } .ob strong { display: block; } .ob small { color: var(--text-mute); }
 .spin { animation: spin 0.9s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+.pre { white-space: pre-wrap; line-height: 1.5; }
+.hint { margin-top: 12px; }
 </style>
