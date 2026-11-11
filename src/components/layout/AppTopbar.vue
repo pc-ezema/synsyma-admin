@@ -1,21 +1,16 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Bell, BellRing, ChevronDown, LogOut, Menu, Search, Settings, UserRound } from 'lucide-vue-next'
+import { ChevronDown, LogOut, Menu, Search, Settings, UserRound } from 'lucide-vue-next'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
+import NotificationBell from '@/components/notifications/NotificationBell.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
-import { useChatStore } from '@/stores/chat'
 import { confirm } from '@/composables/useConfirm'
-import { toast } from '@/composables/useToast'
-import { enableAdminPush, pushState, pushSupported } from '@/lib/push'
-import { parseError } from '@/lib/errors'
 
 const auth = useAuthStore()
 const ui = useUiStore()
 const router = useRouter()
-const chat = useChatStore()
-const pushOn = computed(() => pushState.registered)
 const signingOut = ref(false)
 
 const open = ref(false)
@@ -52,20 +47,6 @@ async function signOut() {
   await auth.logout()
   router.replace({ name: 'login' })
 }
-
-async function bell() {
-  if (!pushSupported()) { toast.info('Browser alerts are not set up for this dashboard.'); return }
-  if (pushOn.value) { router.push('/chat'); return }
-  try {
-    const r = await enableAdminPush()
-    if (r === 'enabled') toast.success('Browser alerts are on for new messages.')
-    else if (r === 'denied') toast.error('Alerts are blocked. Allow notifications for this site in your browser settings.')
-  } catch (e) {
-    console.error('Push setup failed:', e)
-    // API errors get the friendly message; Firebase/service-worker errors show what actually went wrong
-    toast.error(e instanceof Error && !('isAxiosError' in e) ? `Alerts could not be turned on: ${e.message}` : parseError(e).message)
-  }
-}
 </script>
 
 <template>
@@ -80,10 +61,7 @@ async function bell() {
     </label>
 
     <div class="actions">
-      <button class="icon-btn bell" type="button" :aria-label="pushOn ? `Messages, ${chat.unread} unread` : 'Turn on message alerts'" :title="pushOn ? 'Messages' : 'Turn on message alerts'" @click="bell">
-        <BellRing v-if="pushOn" :size="19" /><Bell v-else :size="19" />
-        <span v-if="chat.unread" class="pip" />
-      </button>
+      <NotificationBell />
 
       <div ref="root" class="user">
         <button class="user-btn" type="button" aria-haspopup="menu" :aria-expanded="open" @click="open = !open">
@@ -116,12 +94,10 @@ async function bell() {
   background: rgba(255, 255, 255, 0.86); backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--line);
 }
-.menu { display: none; flex: none; }
+.menu { display: none; }
 .search { flex: 1; min-width: 0; max-width: 420px; height: 42px; }
 .search input { min-width: 0; width: 100%; }
 .actions { margin-left: auto; flex: none; display: flex; align-items: center; gap: 10px; }
-.bell { position: relative; }
-.pip { position: absolute; top: 10px; right: 11px; width: 8px; height: 8px; border-radius: 50%; background: var(--syn-green-text); box-shadow: 0 0 0 2px #fff; }
 
 .user { position: relative; }
 .user-btn {

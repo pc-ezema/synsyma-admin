@@ -6,15 +6,17 @@ import AppTopbar from '@/components/layout/AppTopbar.vue'
 import { useUiStore } from '@/stores/ui'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
+import { useNotificationStore } from '@/stores/notifications'
 import { resumeAdminPush } from '@/lib/push'
 
 const ui = useUiStore()
 const auth = useAuthStore()
 const chat = useChatStore()
+const notes = useNotificationStore()
 const route = useRoute()
 
 watch(() => route.fullPath, () => ui.closeSidebar())
-watch(() => chat.unread, (n) => { document.title = `${n ? `(${n}) ` : ''}${String(route.meta.title ?? 'Admin')} - Synsyma` })
+watch(() => chat.unread + notes.unread, (n) => { document.title = `${n ? `(${n}) ` : ''}${String(route.meta.title ?? 'Admin')} - Synsyma` })
 
 const onKey = (e: KeyboardEvent) => e.key === 'Escape' && ui.closeSidebar()
 // Pick up role/permission changes made by another admin when the tab regains focus
@@ -24,12 +26,15 @@ onMounted(() => {
   document.addEventListener('keydown', onKey)
   document.addEventListener('visibilitychange', onVisible)
   auth.refreshProfile()
-  if (auth.can('chat.view')) { chat.startBadge(); resumeAdminPush() }
+  if (auth.can('chat.view')) chat.startBadge()
+  notes.startBadge()
+  resumeAdminPush() // every admin gets the bell's browser alerts, not only chat
 })
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKey)
   document.removeEventListener('visibilitychange', onVisible)
   chat.stopBadge()
+  notes.stopBadge()
 })
 </script>
 

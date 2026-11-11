@@ -21,6 +21,8 @@ const router = createRouter({
       children: [
         { path: '', name: 'home', component: () => import('@/views/HomeRedirect.vue') },
         { path: 'dashboard', name: 'dashboard', component: () => import('@/views/DashboardView.vue'), meta: { title: 'Dashboard', permission: 'dashboard.view' } },
+        { path: 'users', name: 'users', component: () => import('@/views/UsersView.vue'), meta: { title: 'Users', permission: 'users.view' } },
+        { path: 'users/:id', name: 'user', component: () => import('@/views/UserDetailView.vue'), meta: { title: 'User', permission: 'users.view' } },
         { path: 'chat/:id?', name: 'chat', component: () => import('@/views/ChatView.vue'), meta: { title: 'Chat', permission: 'chat.view', flush: true } },
         { path: 'access/roles', name: 'roles', component: () => import('@/views/RolesView.vue'), meta: { title: 'Roles & permissions', permission: ['roles.index', 'permission.view'] } },
         { path: 'access/admins', name: 'admins', component: () => import('@/views/AdminsView.vue'), meta: { title: 'Administrators', permission: 'admins.view' } },
@@ -41,8 +43,7 @@ const router = createRouter({
         { path: 'campaigns', name: 'campaigns', component: () => import('@/views/CampaignsView.vue'), meta: { title: 'QR codes', permission: 'campaigns.view' } },
         { path: 'categories', name: 'categories', component: () => import('@/views/CategoriesView.vue'), meta: { title: 'Categories', permission: 'categories.view' } },
         { path: 'profile', name: 'profile', component: () => import('@/views/ProfileView.vue'), meta: { title: 'My profile' } },
-        placeholder('users', 'Users', 'users.view'),
-        placeholder('profiles', 'Profiles', 'profiles.view'),
+        { path: 'notifications', name: 'notifications', component: () => import('@/views/NotificationsView.vue'), meta: { title: 'Notifications' } },
         placeholder('settings', 'Settings'),
         { path: 'forbidden', name: 'forbidden', component: () => import('@/views/ForbiddenView.vue'), meta: { title: 'No access' } },
       ],

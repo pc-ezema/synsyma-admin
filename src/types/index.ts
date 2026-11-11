@@ -209,3 +209,24 @@ export interface ReviewRow extends BookingReview {
   customer_name: string | null; customer_email: string | null; contractor_id: string | null; contractor_name: string | null
 }
 export interface ReviewSummary { average: number | null; count: number; hidden: number; distribution: Record<string, number> }
+
+/* ---------- users (customers) ---------- */
+export interface UserRow {
+  id: string; first_name: string; last_name: string; full_name: string
+  email: string; email_verified: boolean; phone: string | null
+  is_active: boolean; last_login_at: string | null; created_at: string
+  bookings_count: number; paid_total: number
+}
+export interface UserSummary { total: number; this_month: number; inactive: number }
+export interface UserBookingRow { id: string; reference: string; status: BookingStatus; service_name: string; total_label: string | null; starts_at_local: string; timezone: string }
+export interface UserReviewRow { id: string; booking_id: string; rating: number; comment: string | null; is_hidden: boolean; created_at: string; service_name: string | null; reference: string | null }
+export interface UserDetail extends UserRow {
+  address: string | null; terms_accepted_at: string | null; terms_version: string | null
+  deactivated_at: string | null; deactivation_reason: string | null
+  stats: { bookings: number; completed: number; cancelled: number; reviews: number; average_rating: number | null }
+  bookings: UserBookingRow[]; reviews: UserReviewRow[]
+}
+
+/* ---------- admin alerts (the bell) ---------- */
+export interface AdminNotification { id: string; type: string; title: string; body: string; link: string | null; read: boolean; created_at: string }
+export interface AlertPref { type: string; label: string; push: boolean; email: boolean }
