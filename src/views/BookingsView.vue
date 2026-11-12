@@ -39,6 +39,7 @@ const tabs = computed<{ key: '' | BookingStatus; label: string; n: number | null
   { key: '', label: 'All', n: summary.value?.all ?? null },
   { key: 'confirmed', label: 'Needs contractor', n: summary.value?.confirmed ?? null },
   { key: 'assigned', label: 'Assigned', n: summary.value?.assigned ?? null },
+  { key: 'en_route', label: 'On the way', n: summary.value?.en_route ?? null },
   { key: 'in_progress', label: 'In progress', n: summary.value?.in_progress ?? null },
   { key: 'pending_payment', label: 'Awaiting payment', n: summary.value?.pending_payment ?? null },
   { key: 'quote_requested', label: 'Quotes', n: summary.value?.quote_requested ?? null },

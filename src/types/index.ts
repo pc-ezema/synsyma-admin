@@ -106,7 +106,7 @@ export interface ContractorCampaign { id: string; name: string; code: string; sc
 export interface JoinOptions { categories: { id: string; name: string }[]; countries: { code: CountryCode; name: string }[]; ref_valid: boolean }
 
 /* ---------- bookings ---------- */
-export type BookingStatus = 'pending_payment' | 'confirmed' | 'assigned' | 'in_progress' | 'completed' | 'cancelled' | 'refunded' | 'quote_requested' | 'quote_sent'
+export type BookingStatus = 'pending_payment' | 'confirmed' | 'assigned' | 'en_route' | 'in_progress' | 'completed' | 'cancelled' | 'refunded' | 'quote_requested' | 'quote_sent'
 export interface BookingRow {
   id: string; reference: string; status: BookingStatus
   service_name: string; category_name: string | null; tier: string | null; price_type: 'hourly' | 'fixed' | 'quote'
@@ -118,7 +118,7 @@ export interface BookingRow {
 }
 export interface BookingEventRow { id: string; type: string; from_status: BookingStatus | null; to_status: BookingStatus | null; actor: 'customer' | 'admin' | 'system'; note: string | null; created_at: string }
 export interface CancelQuote { allowed: boolean; tier: 'free' | 'partial' | 'none'; fee_percent: number; currency: string; paid: number; fee: number; refund: number; message: string }
-export interface BookingPolicy { free_cancel_hours: number; late_cancel_hours: number; late_cancel_fee_percent: number; free_reschedules: number; max_extra_hours: number }
+export interface BookingPolicy { free_cancel_hours: number; late_cancel_hours: number; late_cancel_fee_percent: number; call_out_fee_percent: number; auto_complete_hours: number; free_reschedules: number; max_extra_hours: number }
 export interface BookingPaymentRow {
   id: string; provider: 'stripe' | 'paypal'; purpose: 'booking' | 'extra_hours'; hours: number | null; status: 'requires_payment' | 'succeeded' | 'failed' | 'refunded' | 'partially_refunded'
   amount: string; currency: string; card_brand: string | null; card_last4: string | null
@@ -126,9 +126,13 @@ export interface BookingPaymentRow {
 }
 export interface BookingDetail extends BookingRow {
   quote?: BookingQuote | null
+  completion_note?: string | null
+  completed_by?: 'customer' | 'admin' | 'system' | null
+  problem_reported_at?: string | null
+  problem_note?: string | null
+  quote_default_days?: number
   ledger?: BookingLedger | null
   review?: BookingReview | null
-  completion_note?: string | null
   address_line1: string; address_line2: string | null; postal_code: string; instructions: string | null; notes: string | null
   customer_phone: string | null; admin_notes: string | null
   subtotal: string; discount_total: string; tax_total: string; base_price: string | null; included_hours: number | null; additional_hour_price: string | null
@@ -223,6 +227,7 @@ export interface UserReviewRow { id: string; booking_id: string; rating: number;
 export interface UserDetail extends UserRow {
   address: string | null; terms_accepted_at: string | null; terms_version: string | null
   deactivated_at: string | null; deactivation_reason: string | null
+  email_changes: UserEmailChange[]
   stats: { bookings: number; completed: number; cancelled: number; reviews: number; average_rating: number | null }
   bookings: UserBookingRow[]; reviews: UserReviewRow[]
 }
@@ -230,3 +235,10 @@ export interface UserDetail extends UserRow {
 /* ---------- admin alerts (the bell) ---------- */
 export interface AdminNotification { id: string; type: string; title: string; body: string; link: string | null; read: boolean; created_at: string }
 export interface AlertPref { type: string; label: string; push: boolean; email: boolean }
+
+export interface UserEmailChange { id: string; old_email: string; new_email: string; reason: string; status: 'pending' | 'confirmed' | 'cancelled' | 'expired'; requested_by: string | null; created_at: string; expires_at: string; confirmed_at: string | null }
+
+export interface AppSettings {
+  business_name: string | null; support_email: string | null; support_phone: string | null; business_address: string | null
+  min_notice_hours: number; max_days_ahead: number; quote_valid_days: number; review_edit_hours: number
+}

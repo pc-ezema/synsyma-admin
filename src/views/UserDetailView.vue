@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { AlertCircle, ArrowLeft, Loader2, MessageSquare } from 'lucide-vue-next'
+import { AlertCircle, ArrowLeft, Eye, EyeOff, Loader2, MessageSquare } from 'lucide-vue-next'
 import { api } from '@/lib/api'
 import { parseError } from '@/lib/errors'
 import { confirm } from '@/composables/useConfirm'
@@ -11,13 +11,14 @@ import { formatDateTime } from '@/lib/format'
 import { localWhen, money, statusLabel, statusPill } from '@/lib/bookings'
 import Modal from '@/components/ui/Modal.vue'
 import StarRating from '@/components/reviews/StarRating.vue'
-import type { Conversation, UserDetail } from '@/types'
+import type { Conversation, UserDetail, UserEmailChange } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const canManage = computed(() => auth.can('users.manage'))
 const canChat = computed(() => auth.can('chat.view'))
+const canEmail = computed(() => auth.can('users.change_email'))
 const id = String(route.params.id)
 
 const u = ref<UserDetail | null>(null)
@@ -45,6 +46,31 @@ async function openChat() {
     }
     toast.info('No chat with this customer yet. They start one from the app.')
   } catch (e) { toast.error(parseError(e, "Couldn't look up their chat.").message) } finally { busy.value = false }
+}
+
+// ---- change email: starts a request; the email only changes when the new address confirms ----
+const pending = computed(() => u.value?.email_changes.find((c) => c.status === 'pending') ?? null)
+const changeLabel: Record<UserEmailChange['status'], string> = { pending: 'Waiting for confirmation', confirmed: 'Changed', cancelled: 'Cancelled', expired: 'Expired' }
+const ec = reactive({ open: false, saving: false, email: '', reason: '', password: '', show: false, errors: {} as Record<string, string>, error: '' })
+function askEmail() { Object.assign(ec, { open: true, saving: false, email: '', reason: '', password: '', show: false, errors: {}, error: '' }) }
+async function submitEmail() {
+  ec.errors = {}; ec.error = ''
+  if (!/^\S+@\S+\.\S+$/.test(ec.email.trim())) { ec.errors.new_email = 'Enter a valid email address.'; return }
+  if (ec.reason.trim().length < 5) { ec.errors.reason = 'Give a short reason.'; return }
+  if (!ec.password) { ec.errors.password = 'Enter your password to confirm.'; return }
+  ec.saving = true
+  try {
+    const res = await api.post<{ message: string; data: { email_changes: UserEmailChange[] } }>(`/admin/users/${id}/email`, { new_email: ec.email.trim(), reason: ec.reason.trim(), password: ec.password })
+    if (u.value) u.value.email_changes = res.data.data.email_changes
+    toast.success(res.data.message); ec.open = false
+  } catch (e) { const pe = parseError(e); ec.errors = pe.fields; if (!Object.keys(pe.fields).length) ec.error = pe.message } finally { ec.saving = false; ec.password = '' }
+}
+async function cancelEmail() {
+  const yes = await confirm({ title: 'Cancel this email change?', message: 'The link sent to the new address stops working. Their email stays as it is.', confirmText: 'Cancel change', tone: 'danger' })
+  if (!yes) return
+  busy.value = true
+  try { const res = await api.delete<{ message: string; data: { email_changes: UserEmailChange[] } }>(`/admin/users/${id}/email`); if (u.value) u.value.email_changes = res.data.data.email_changes; toast.success(res.data.message) }
+  catch (e) { toast.error(parseError(e).message) } finally { busy.value = false }
 }
 
 // ---- deactivate (needs a reason) / reactivate ----
@@ -82,6 +108,7 @@ async function reactivate() {
         </div>
         <div class="acts">
           <button v-if="canChat" type="button" class="btn btn-primary" :disabled="busy" @click="openChat"><Loader2 v-if="busy" :size="16" class="spin" /><MessageSquare v-else :size="16" /> Chat with customer</button>
+          <button v-if="canEmail" type="button" class="btn btn-ghost" :disabled="busy" @click="askEmail">Change email</button>
           <template v-if="canManage">
             <button v-if="u.is_active" type="button" class="btn btn-ghost danger" :disabled="busy" @click="askDeactivate">Deactivate account</button>
             <button v-else type="button" class="btn btn-ghost" :disabled="busy" @click="reactivate">Reactivate account</button>
@@ -92,6 +119,11 @@ async function reactivate() {
       <p v-if="!u.is_active" class="note" role="status">
         This account is deactivated<template v-if="u.deactivated_at"> since {{ formatDateTime(u.deactivated_at) }}</template>. They cannot sign in.
         <template v-if="u.deactivation_reason"><br />Reason: {{ u.deactivation_reason }}</template>
+      </p>
+
+      <p v-if="pending" class="note info" role="status">
+        Waiting for the customer to confirm <strong>{{ pending.new_email }}</strong>. The link expires {{ formatDateTime(pending.expires_at) }}. Their email stays <strong>{{ u.email }}</strong> until then.
+        <button v-if="canEmail" type="button" class="lnkbtn" :disabled="busy" @click="cancelEmail">Cancel this change</button>
       </p>
 
       <div class="grid">
@@ -116,6 +148,17 @@ async function reactivate() {
             <div><strong>{{ u.paid_total ? money(u.paid_total, 'USD') : '—' }}</strong><span>Total paid</span></div>
           </div>
           <p class="muted"><template v-if="u.stats.reviews">{{ u.stats.reviews }} {{ u.stats.reviews === 1 ? 'review' : 'reviews' }} given, average <strong>{{ u.stats.average_rating }}</strong> / 5.</template><template v-else>No reviews given yet.</template></p>
+        </section>
+
+        <section v-if="u.email_changes.length" class="card box wide">
+          <h2>Email changes</h2>
+          <ul class="ech">
+            <li v-for="c in u.email_changes" :key="c.id">
+              <div><strong>{{ c.old_email }}</strong> to <strong>{{ c.new_email }}</strong> <span class="pill" :class="{ green: c.status === 'confirmed', grey: c.status === 'cancelled' || c.status === 'expired' }">{{ changeLabel[c.status] }}</span></div>
+              <p class="muted">{{ c.reason }}</p>
+              <small class="muted">Started {{ formatDateTime(c.created_at) }}<template v-if="c.requested_by"> by {{ c.requested_by }}</template><template v-if="c.confirmed_at"> · confirmed {{ formatDateTime(c.confirmed_at) }}</template></small>
+            </li>
+          </ul>
         </section>
 
         <section class="card box wide">
@@ -146,6 +189,26 @@ async function reactivate() {
         </section>
       </div>
 
+      <Modal :open="ec.open" title="Change email" :width="480" @close="ec.open = false">
+        <form id="email-form" novalidate @submit.prevent="submitEmail">
+          <p v-if="ec.error" class="err-text">{{ ec.error }}</p>
+          <p class="muted">Nothing changes yet. We email a confirmation link to the new address and a notice to <strong>{{ u.email }}</strong>. The email changes when the new address is confirmed, and the customer is signed out.</p>
+          <label class="label" for="ec-email">New email</label>
+          <input id="ec-email" v-model="ec.email" type="email" class="input" :class="{ invalid: ec.errors.new_email }" autocomplete="off" inputmode="email">
+          <p v-if="ec.errors.new_email" class="err-text">{{ ec.errors.new_email }}</p>
+          <label class="label" for="ec-why">Reason <span class="muted">(kept on record)</span></label>
+          <textarea id="ec-why" v-model="ec.reason" class="input ta" rows="3" maxlength="300" placeholder="For example: customer wrote from the new address and confirmed their last booking" :class="{ invalid: ec.errors.reason }" />
+          <p v-if="ec.errors.reason" class="err-text">{{ ec.errors.reason }}</p>
+          <label class="label" for="ec-pw">Your password</label>
+          <div class="pwrow"><input id="ec-pw" v-model="ec.password" :type="ec.show ? 'text' : 'password'" class="input" :class="{ invalid: ec.errors.password }" autocomplete="current-password"><button type="button" class="eye" :aria-label="ec.show ? 'Hide password' : 'Show password'" @click="ec.show = !ec.show"><EyeOff v-if="ec.show" :size="17" /><Eye v-else :size="17" /></button></div>
+          <p v-if="ec.errors.password" class="err-text">{{ ec.errors.password }}</p>
+        </form>
+        <template #footer>
+          <button type="button" class="btn btn-ghost" @click="ec.open = false">Cancel</button>
+          <button type="submit" form="email-form" class="btn btn-primary" :disabled="ec.saving"><Loader2 v-if="ec.saving" :size="16" class="spin" /> Send confirmation</button>
+        </template>
+      </Modal>
+
       <Modal :open="off.open" title="Deactivate this account" :width="460" @close="off.open = false">
         <form id="off-form" novalidate @submit.prevent="submitDeactivate">
           <p class="muted">They are signed out now and cannot sign in again until you reactivate them. Their bookings stay as they are, so cancel or finish any open ones separately.</p>
@@ -170,6 +233,13 @@ async function reactivate() {
 .acts { display: flex; gap: 8px; flex-wrap: wrap; }
 .danger { color: var(--danger); }
 .note { margin-bottom: 16px; padding: 12px 14px; font-size: 14px; border-radius: 12px; background: rgba(214, 69, 69, 0.07); border: 1px solid rgba(214, 69, 69, 0.28); }
+.note.info { background: rgba(0, 102, 255, 0.07); border-color: rgba(0, 102, 255, 0.25); }
+.lnkbtn { margin-left: 8px; background: none; border: 0; padding: 0; color: var(--blue-ink); font: inherit; font-weight: 600; cursor: pointer; } .lnkbtn:hover { text-decoration: underline; } .lnkbtn:disabled { opacity: 0.55; }
+.ech { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.ech li { padding-bottom: 14px; border-bottom: 1px solid var(--line); } .ech li:last-child { border-bottom: 0; padding-bottom: 0; }
+.ech p { margin: 4px 0 2px; }
+.pwrow { position: relative; } .pwrow .input { padding-right: 44px; }
+.eye { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 38px; height: 38px; background: none; border: 0; color: var(--text-mute); cursor: pointer; }
 .grid { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; align-items: start; }
 .wide { grid-column: 1 / -1; }
 @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }

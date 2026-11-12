@@ -1,11 +1,11 @@
 import type { BookingStatus } from '@/types'
 
 export const statusLabel: Record<BookingStatus, string> = {
-  pending_payment: 'Awaiting payment', confirmed: 'Needs contractor', assigned: 'Assigned', in_progress: 'In progress', completed: 'Completed',
+  pending_payment: 'Awaiting payment', confirmed: 'Needs contractor', assigned: 'Assigned', en_route: 'On the way', in_progress: 'In progress', completed: 'Completed',
   cancelled: 'Cancelled', refunded: 'Refunded', quote_requested: 'Quote requested', quote_sent: 'Quote sent',
 }
 export const statusPill: Record<BookingStatus, string> = {
-  pending_payment: 'grey', confirmed: '', assigned: '', in_progress: '', completed: 'green',
+  pending_payment: 'grey', confirmed: '', assigned: '', en_route: '', in_progress: '', completed: 'green',
   cancelled: 'red', refunded: 'grey', quote_requested: 'grey', quote_sent: 'grey',
 }
 export const eventActor: Record<string, string> = { customer: 'Customer', admin: 'Admin', system: 'System' }

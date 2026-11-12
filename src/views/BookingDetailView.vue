@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { AlertCircle, ArrowLeft, Loader2, MapPin, Phone, User } from 'lucide-vue-next'
+import { AlertCircle, AlertTriangle, ArrowLeft, Loader2, MapPin, Phone, User } from 'lucide-vue-next'
 import { api } from '@/lib/api'
 import { parseError } from '@/lib/errors'
 import { confirm } from '@/composables/useConfirm'
@@ -50,6 +50,14 @@ async function markConfirmed() {
   const yes = await confirm({ title: 'Mark as confirmed?', message: 'Card payments confirm a booking automatically. Only do this if you received payment another way.', confirmText: 'Mark confirmed', tone: 'primary' })
   if (yes) await setStatus('confirmed')
 }
+async function mobilise() {
+  const yes = await confirm({ title: 'Mobilise the contractor?', message: 'The customer is told the contractor is on the way. If they cancel after this, a call-out fee applies.', confirmText: 'Mobilise', tone: 'primary' })
+  if (yes) await setStatus('en_route')
+}
+async function backToAssigned() {
+  const yes = await confirm({ title: 'Move back to assigned?', message: 'Use this if the contractor has not actually set off. The call-out fee will no longer apply.', confirmText: 'Back to assigned', tone: 'primary' })
+  if (yes) await setStatus('assigned')
+}
 async function start() {
   const yes = await confirm({ title: 'Start this job?', message: 'Use this when the contractor has arrived and begun.', confirmText: 'Mark in progress', tone: 'primary' })
   if (yes) await setStatus('in_progress')
@@ -63,6 +71,16 @@ async function submitComplete() {
   cp.saving = false
   if (ok) cp.open = false
   else cp.error = 'Could not mark this job completed. Close this and try again.'
+}
+// ---- customer problem ----
+async function resolveProblem() {
+  const yes = await confirm({ title: 'Mark this problem as resolved?', message: 'The flag is removed and automatic completion can run again. Use this once you have sorted it out with the customer.', confirmText: 'Mark resolved', tone: 'primary' })
+  if (!yes) return
+  busy.value = true
+  try {
+    const res = await api.post<{ message: string; data: BookingDetail }>(`/admin/bookings/${id}/problem/resolve`, {})
+    b.value = res.data.data; toast.success(res.data.message)
+  } catch (e) { toast.error(parseError(e).message) } finally { busy.value = false }
 }
 async function unassign() {
   const yes = await confirm({ title: 'Remove the contractor?', message: 'The booking goes back to "Needs contractor".', confirmText: 'Remove contractor', tone: 'danger' })
@@ -116,7 +134,7 @@ const qt = reactive({ open: false, saving: false, price: '', days: 7, message: '
 const quoteStateLabel: Record<string, string> = { requested: 'Waiting for your price', sent: 'Sent, waiting for the customer', expired: 'Expired', accepted: 'Accepted', closed: 'Closed' }
 function openQuote() {
   const q = b.value?.quote
-  Object.assign(qt, { open: true, saving: false, errors: {}, error: '', price: q?.price ? String(q.price) : '', days: 7, message: q?.message ?? '' })
+  Object.assign(qt, { open: true, saving: false, errors: {}, error: '', price: q?.price ? String(q.price) : '', days: b.value?.quote_default_days ?? 7, message: q?.message ?? '' })
 }
 async function submitQuote() {
   qt.errors = {}; qt.error = ''
@@ -178,13 +196,26 @@ async function saveNotes() {
           <button v-if="b.status === 'quote_sent'" type="button" class="btn btn-ghost" :disabled="busy" @click="withdrawQuote">Withdraw quote</button>
           <button v-if="b.status === 'pending_payment'" type="button" class="btn btn-primary" :disabled="busy" @click="markConfirmed">Mark confirmed</button>
           <button v-if="b.status === 'confirmed'" type="button" class="btn btn-primary" :disabled="busy" @click="openAssign">Assign contractor</button>
-          <button v-if="b.status === 'assigned'" type="button" class="btn btn-primary" :disabled="busy" @click="start">Start job</button>
+          <button v-if="b.status === 'assigned'" type="button" class="btn btn-primary" :disabled="busy" @click="mobilise">Mobilise contractor</button>
+          <button v-if="b.status === 'en_route'" type="button" class="btn btn-primary" :disabled="busy" @click="start">Start job</button>
+          <button v-if="b.status === 'en_route'" type="button" class="btn btn-ghost" :disabled="busy" @click="backToAssigned">Back to assigned</button>
           <button v-if="b.status === 'assigned'" type="button" class="btn btn-ghost" :disabled="busy" @click="openAssign">Reassign</button>
           <button v-if="b.status === 'assigned'" type="button" class="btn btn-ghost" :disabled="busy" @click="unassign">Remove contractor</button>
           <button v-if="b.status === 'in_progress'" type="button" class="btn btn-primary" :disabled="busy" @click="complete">Mark completed</button>
           <button v-if="['pending_payment', 'confirmed', 'assigned'].includes(b.status)" type="button" class="btn btn-ghost" :disabled="busy" @click="askReschedule">Reschedule</button>
           <button v-if="b.refundable > 0" type="button" class="btn btn-ghost" :disabled="busy" @click="askRefund">Refund…</button>
-          <button v-if="['pending_payment', 'confirmed', 'assigned', 'in_progress', 'quote_requested', 'quote_sent'].includes(b.status)" type="button" class="btn btn-ghost danger" :disabled="busy" @click="askCancel">Cancel booking</button>
+          <button v-if="['pending_payment', 'confirmed', 'assigned', 'en_route', 'in_progress', 'quote_requested', 'quote_sent'].includes(b.status)" type="button" class="btn btn-ghost danger" :disabled="busy" @click="askCancel">Cancel booking</button>
+        </div>
+      </div>
+
+      <div v-if="b.problem_reported_at" class="note prob" role="alert">
+        <div>
+          <strong><AlertTriangle :size="16" aria-hidden="true" /> Customer reported a problem</strong>
+          <span class="pre">{{ b.problem_note }}</span>
+          <small>{{ formatDateTime(b.problem_reported_at) }} · automatic completion is paused</small>
+        </div>
+        <div class="pacts">
+          <button v-if="canManage" type="button" class="btn btn-primary btn-sm" :disabled="busy" @click="resolveProblem">Mark resolved</button>
         </div>
       </div>
 
@@ -297,6 +328,8 @@ async function saveNotes() {
                 <template v-else-if="e.type === 'quote_declined'">Quote declined</template>
                 <template v-else-if="e.type === 'quote_expired'">Quote expired</template>
                 <template v-else-if="e.type === 'extra_hours'">Extra hours added</template>
+                <template v-else-if="e.type === 'problem_reported'">Customer reported a problem</template>
+                <template v-else-if="e.type === 'problem_resolved'">Problem resolved</template>
                 <template v-else-if="e.type === 'review_added'">Customer left a review</template>
                 <template v-else-if="e.type === 'review_edited'">Customer changed their review</template>
                 <template v-else-if="e.type === 'refund'">Refund</template>
@@ -427,6 +460,10 @@ dl.sep { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line);
 .acts { display: flex; gap: 8px; flex-wrap: wrap; }
 .danger { color: var(--danger); }
 .note { margin-bottom: 16px; padding: 12px 14px; font-size: 14px; border-radius: 12px; }
+.note.prob { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; background: rgba(217, 45, 32, 0.07); border: 1px solid rgba(217, 45, 32, 0.3); }
+.note.prob strong { display: flex; align-items: center; gap: 6px; color: var(--danger); margin-bottom: 4px; }
+.note.prob small { display: block; margin-top: 4px; color: var(--text-mute); }
+.pacts { display: flex; gap: 8px; flex-wrap: wrap; }
 .note.ok { background: rgba(0, 102, 255, 0.07); border: 1px solid rgba(0, 102, 255, 0.25); }
 .grid { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; align-items: start; }
 .wide { grid-column: 1 / -1; }

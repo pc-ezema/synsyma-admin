@@ -7,7 +7,7 @@ import { toast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import type { BookingPolicy } from '@/types'
 
-type PolicyKey = 'free_cancel_hours' | 'late_cancel_hours' | 'late_cancel_fee_percent' | 'free_reschedules' | 'max_extra_hours'
+type PolicyKey = 'free_cancel_hours' | 'late_cancel_hours' | 'late_cancel_fee_percent' | 'call_out_fee_percent' | 'free_reschedules' | 'max_extra_hours'
 
 const auth = useAuthStore()
 const canManage = computed(() => auth.can('bookings.manage'))
@@ -17,7 +17,7 @@ const error = ref('')
 const saving = ref(false)
 const errors = reactive<Record<string, string>>({})
 const form = reactive<Record<PolicyKey, string>>({
-  free_cancel_hours: '', late_cancel_hours: '', late_cancel_fee_percent: '', free_reschedules: '', max_extra_hours: '',
+  free_cancel_hours: '', late_cancel_hours: '', late_cancel_fee_percent: '', call_out_fee_percent: '', free_reschedules: '', max_extra_hours: '',
 })
 
 function fill(p: BookingPolicy) { (Object.keys(form) as (PolicyKey)[]).forEach((k) => { form[k] = String(p[k]) }) }
@@ -37,6 +37,7 @@ async function save() {
     ['free_cancel_hours', 1, 720, 'Enter 1 to 720 hours.'],
     ['late_cancel_hours', 0, 720, 'Enter 0 to 720 hours.'],
     ['late_cancel_fee_percent', 0, 100, 'Enter 0 to 100.'],
+    ['call_out_fee_percent', 0, 100, 'Enter 0 to 100.'],
     ['free_reschedules', 0, 10, 'Enter 0 to 10.'],
     ['max_extra_hours', 0, 12, 'Enter 0 to 12.'],
   ]
@@ -97,6 +98,17 @@ async function save() {
           Between <strong>{{ form.late_cancel_hours || '…' }}h</strong> and <strong>{{ form.free_cancel_hours || '…' }}h</strong> a
           <strong>{{ form.late_cancel_fee_percent || '…' }}%</strong> fee applies. Under <strong>{{ form.late_cancel_hours || '…' }}h</strong> there is no refund.
           Bookings with no contractor assigned can always be cancelled for free.
+        </p>
+        <div class="row">
+          <div>
+            <label class="label" for="p3b">Call-out fee (%) when the contractor is already on the way</label>
+            <input id="p3b" v-model="form.call_out_fee_percent" class="input" inputmode="numeric" :readonly="!canManage" :class="{ invalid: errors.call_out_fee_percent }">
+            <p v-if="errors.call_out_fee_percent" class="err-text">{{ errors.call_out_fee_percent }}</p>
+          </div>
+        </div>
+        <p class="sum">
+          Once you mark a booking <strong>On the way</strong>, cancelling keeps at least <strong>{{ form.call_out_fee_percent || '…' }}%</strong> of what the customer paid
+          (or the late fee above, if that is higher). The kept amount goes to the contractor.
         </p>
 
         <h2>Changes</h2>

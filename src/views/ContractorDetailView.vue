@@ -13,6 +13,7 @@ import { fileSize, kindLabel, statusLabel, statusPill } from '@/lib/contractors'
 import Modal from '@/components/ui/Modal.vue'
 import ContractorEditModal from '@/components/contractors/ContractorEditModal.vue'
 import PayoutDetailsCard from '@/components/payouts/PayoutDetailsCard.vue'
+import ContractorEarningsCard from '@/components/payouts/ContractorEarningsCard.vue'
 import ContractorRatingCard from '@/components/reviews/ContractorRatingCard.vue'
 import type { DocKind, ContractorDetail, ContractorDoc, ServiceCategory } from '@/types'
 
@@ -172,6 +173,8 @@ async function removeDoc(d: ContractorDoc) {
         </section>
 
         <ContractorRatingCard v-if="canSeeRatings" class="wide" :contractor-id="p.id" />
+
+        <ContractorEarningsCard v-if="canSeePayout" class="wide" :contractor-id="p.id" />
 
         <PayoutDetailsCard v-if="canSeePayout" class="wide" :contractor-id="p.id" :contractor-name="p.name" />
 
