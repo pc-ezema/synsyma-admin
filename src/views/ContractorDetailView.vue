@@ -12,6 +12,7 @@ import { countryName } from '@/lib/regions'
 import { fileSize, kindLabel, statusLabel, statusPill } from '@/lib/contractors'
 import Modal from '@/components/ui/Modal.vue'
 import ContractorEditModal from '@/components/contractors/ContractorEditModal.vue'
+import ContractorVerificationCard from '@/components/contractors/ContractorVerificationCard.vue'
 import PayoutDetailsCard from '@/components/payouts/PayoutDetailsCard.vue'
 import ContractorEarningsCard from '@/components/payouts/ContractorEarningsCard.vue'
 import ContractorRatingCard from '@/components/reviews/ContractorRatingCard.vue'
@@ -22,6 +23,7 @@ const router = useRouter()
 const auth = useAuthStore()
 const canUpdate = computed(() => auth.can('contractors.update'))
 const canDelete = computed(() => auth.can('contractors.delete'))
+const canVerify = computed(() => auth.can('contractors.verify'))
 const canSeePayout = computed(() => auth.can('payouts.view'))
 const canSeeRatings = computed(() => auth.can('reviews.view'))
 const id = String(route.params.id)
@@ -32,6 +34,8 @@ const error = ref('')
 const editing = ref(false)
 const categories = ref<{ id: string; name: string }[]>([])
 const busy = ref(false)
+
+const approveHint = computed(() => (p.value && !p.value.verification.ready ? `Still needed: ${p.value.verification.missing.join(', ')}` : undefined))
 
 async function load() {
   loading.value = true; error.value = ''
@@ -135,10 +139,10 @@ async function removeDoc(d: ContractorDoc) {
           </div>
         </div>
         <div v-if="canUpdate" class="acts">
-          <button v-if="p.status === 'pending'" type="button" class="btn btn-primary" :disabled="busy" @click="approve(false)">Approve</button>
+          <button v-if="p.status === 'pending'" type="button" class="btn btn-primary" :disabled="busy || !p.verification.ready" :title="approveHint" @click="approve(false)">Approve</button>
           <button v-if="p.status === 'pending'" type="button" class="btn btn-ghost" :disabled="busy" @click="askReason('rejected')">Reject</button>
           <button v-if="p.status === 'approved'" type="button" class="btn btn-ghost" :disabled="busy" @click="askReason('suspended')">Suspend</button>
-          <button v-if="p.status === 'suspended' || p.status === 'rejected'" type="button" class="btn btn-primary" :disabled="busy" @click="approve(true)">{{ p.status === 'rejected' ? 'Approve anyway' : 'Reinstate' }}</button>
+          <button v-if="p.status === 'suspended' || p.status === 'rejected'" type="button" class="btn btn-primary" :disabled="busy || !p.verification.ready" :title="approveHint" @click="approve(true)">{{ p.status === 'rejected' ? 'Approve anyway' : 'Reinstate' }}</button>
           <button type="button" class="btn btn-ghost" @click="editing = true"><Pencil :size="16" /> Edit</button>
           <button v-if="canDelete" type="button" class="btn btn-ghost danger" :disabled="busy" @click="remove"><Trash2 :size="16" /> Remove</button>
         </div>
@@ -178,6 +182,8 @@ async function removeDoc(d: ContractorDoc) {
 
         <PayoutDetailsCard v-if="canSeePayout" class="wide" :contractor-id="p.id" :contractor-name="p.name" />
 
+        <ContractorVerificationCard class="wide" :contractor="p" :can-update="canUpdate" :can-verify="canVerify" @updated="(x) => (p = x)" />
+
         <section class="card box wide">
           <div class="doc-head">
             <h2>Documents</h2>
@@ -187,15 +193,15 @@ async function removeDoc(d: ContractorDoc) {
               <input ref="fileInput" type="file" accept="image/jpeg,image/png,application/pdf" class="sr-only" tabindex="-1" @change="onFile" />
             </div>
           </div>
-          <p v-if="!p.documents.length" class="muted">No documents uploaded. {{ p.type === 'individual' ? 'Individuals should have a photo ID on file.' : 'Insurance and licence files are worth having on file.' }}</p>
+          <p v-if="!p.documents.length" class="muted">No documents uploaded. A government-approved photo ID is required before approval.</p>
           <ul v-else class="docs">
             <li v-for="d in p.documents" :key="d.id">
               <FileText :size="20" class="fi" aria-hidden="true" />
               <div class="dn"><strong>{{ kindLabel[d.kind] }}</strong><small>{{ d.original_name }} · {{ fileSize(d.size) }}</small></div>
               <span v-if="d.verified" class="pill green"><BadgeCheck :size="12" /> Checked</span>
               <div class="dact">
-                <button type="button" class="icon-btn" :aria-label="`Open ${d.original_name}`" @click="openDoc(d)"><ExternalLink :size="16" /></button>
-                <button type="button" class="icon-btn" :aria-label="`Download ${d.original_name}`" @click="downloadDoc(d)"><Download :size="16" /></button>
+                <button v-if="d.kind !== 'id' || canVerify" type="button" class="icon-btn" :aria-label="`Open ${d.original_name}`" @click="openDoc(d)"><ExternalLink :size="16" /></button>
+                <button v-if="d.kind !== 'id' || canVerify" type="button" class="icon-btn" :aria-label="`Download ${d.original_name}`" @click="downloadDoc(d)"><Download :size="16" /></button>
                 <button v-if="canUpdate" type="button" class="btn btn-ghost btn-sm" @click="toggleVerified(d)">{{ d.verified ? 'Unmark' : 'Mark checked' }}</button>
                 <button v-if="canUpdate" type="button" class="icon-btn danger" :aria-label="`Remove ${d.original_name}`" @click="removeDoc(d)"><Trash2 :size="16" /></button>
               </div>

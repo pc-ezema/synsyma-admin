@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { AlertCircle, Eye, EyeOff, Info, Loader2, Lock, Mail } from 'lucide-vue-next'
 import BrandMark from '@/components/BrandMark.vue'
 import Sparkline from '@/components/dashboard/Sparkline.vue'
+import { bare } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
 import { parseError } from '@/lib/errors'
 import { landingPath } from '@/router'
-import { toast } from '@/composables/useToast'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -23,7 +23,20 @@ const wait = ref(0)
 let timer: number | undefined
 
 const expired = computed(() => route.query.reason === 'expired')
-const spark = [12, 18, 15, 24, 22, 31, 28, 38, 35, 46, 52, 61]
+
+// Live signup count for the card on the left. If it can't be loaded the card is simply not shown.
+const stats = ref<{ week: number; change: number | null; series: number[] } | null>(null)
+onMounted(async () => {
+  try {
+    const res = await bare.get<{ data: { week: number; change: number | null; series: number[] } }>('/admin/public/login-stats', { timeout: 6000 })
+    const d = res.data.data
+    if (typeof d.week === 'number' && Array.isArray(d.series) && d.series.length >= 2) stats.value = d
+  } catch { /* leave the card out */ }
+})
+const changeText = computed(() => {
+  const c = stats.value?.change
+  return c === null || c === undefined ? '' : `${c > 0 ? '+' : ''}${c}%`
+})
 
 function countdown(sec: number) {
   wait.value = sec
@@ -38,7 +51,6 @@ async function submit() {
   loading.value = true
   try {
     await auth.login(email.value, password.value, remember.value)
-    toast.success(`Welcome back, ${auth.user?.name ?? 'there'}.`)
     const to = route.query.redirect as string | undefined
     router.replace(to && to.startsWith('/') && !to.startsWith('//') ? to : landingPath())
   } catch (e) {
@@ -56,20 +68,20 @@ async function submit() {
 <template>
   <div class="login">
     <aside class="showcase">
-      <div class="brand"><BrandMark :size="60" /></div>
+      <div class="brand"><BrandMark :size="40" /><span>Synsyma</span></div>
 
       <div class="pitch">
         <p class="pitch-title">Every user, message and signup in one view.</p>
         <p class="pitch-sub">Manage accounts, moderate chat and watch growth as it happens.</p>
       </div>
 
-      <div class="glass" aria-hidden="true">
+      <div v-if="stats" class="glass">
         <div class="glass-head">
           <span>New signups this week</span>
-          <b>+18.4%</b>
+          <b v-if="changeText" :class="{ down: (stats.change ?? 0) < 0 }">{{ changeText }}</b>
         </div>
-        <p class="glass-num">2,846</p>
-        <Sparkline class="glass-spark" :data="spark" tone="green" />
+        <p class="glass-num">{{ stats.week.toLocaleString() }}</p>
+        <Sparkline class="glass-spark" :data="stats.series" :tone="(stats.change ?? 0) < 0 ? 'blue' : 'green'" aria-hidden="true" />
       </div>
       <span class="orb orb-a" aria-hidden="true" />
       <span class="orb orb-b" aria-hidden="true" />
@@ -152,6 +164,7 @@ async function submit() {
 }
 .glass-head { display: flex; justify-content: space-between; font-size: 14px; color: var(--text-dim); }
 .glass-head b { color: var(--syn-green-text); }
+.glass-head b.down { color: #ff8a9b; }
 .glass-num { margin: 6px 0 0; font-family: var(--font-display); font-size: 40px; font-weight: 600; letter-spacing: -0.02em; }
 .glass-spark { display: block; width: calc(100% + 44px); margin: 0 -22px; height: 64px; }
 .orb { position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.55; }

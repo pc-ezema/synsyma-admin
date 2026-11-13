@@ -100,6 +100,16 @@ export interface ContractorDetail extends ContractorRow {
   categories: { id: string; name: string }[]
   areas: { id: string; country: CountryCode; region: string; city: string | null }[]
   documents: ContractorDoc[]
+  id_type: 'passport' | 'drivers_licence' | 'national_id' | null
+  social_links: Record<string, string> | null
+  tax_ack_at: string | null
+  background_consent_at: string | null
+  consent_source: 'self' | 'admin' | null
+  consent_version: string | null
+  background_status: 'not_started' | 'in_progress' | 'passed' | 'failed'
+  background_checked_at: string | null
+  background_notes: string | null
+  verification: { ready: boolean; missing: string[]; checks: { id: boolean; tax_ack: boolean; background_consent: boolean; background_check: boolean } }
 }
 export interface ContractorSummary { pending: number; approved: number; suspended: number; rejected: number; total: number }
 export interface ContractorCampaign { id: string; name: string; code: string; scans: number; signups: number; is_active: boolean; created_at: string }
