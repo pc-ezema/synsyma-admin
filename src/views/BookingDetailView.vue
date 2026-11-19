@@ -37,6 +37,17 @@ onMounted(load)
 const cur = (v: string | number | null | undefined) => (v === null || v === undefined ? '' : money(v, b.value?.currency ?? 'USD'))
 const paymentLabel: Record<string, string> = { requires_payment: 'Not paid', succeeded: 'Paid', failed: 'Failed', refunded: 'Refunded', partially_refunded: 'Partly refunded' }
 
+function extraHours(pm: { hours?: number | null; amount: string | number }): number | null {
+  if (pm.hours) return Number(pm.hours)
+  const rate = Number(b.value?.additional_hour_price ?? 0)
+  return rate > 0 ? Math.round(Number(pm.amount) / rate) : null
+}
+function paymentFor(pm: { purpose: string; hours?: number | null; amount: string | number }): string {
+  if (pm.purpose !== 'extra_hours') return 'The booking'
+  const n = extraHours(pm)
+  return n ? `${n} extra ${n === 1 ? 'hour' : 'hours'}` : 'Extra hours'
+}
+
 // ---- status changes ----
 async function setStatus(status: BookingStatus, note?: string, refund?: RefundChoice, completionNote?: string): Promise<boolean> {
   busy.value = true
@@ -273,7 +284,7 @@ async function saveNotes() {
           <h3>Payments</h3>
           <template v-if="b.payments?.length">
             <dl v-for="(pm, i) in b.payments" :key="pm.id" :class="{ sep: i > 0 }">
-              <dt>For</dt><dd>{{ pm.purpose === 'extra_hours' ? `${pm.hours} extra ${pm.hours === 1 ? 'hour' : 'hours'}` : 'The booking' }} · {{ cur(pm.amount) }}</dd>
+              <dt>For</dt><dd>{{ paymentFor(pm) }} · {{ cur(pm.amount) }}</dd>
               <dt>Status</dt><dd>{{ paymentLabel[pm.status] ?? pm.status }}</dd>
               <dt>Paid</dt><dd>{{ pm.paid_at ? formatDateTime(pm.paid_at) : '—' }}</dd>
               <dt>Method</dt><dd>{{ pm.provider === 'paypal' ? 'PayPal' : pm.card_last4 ? `${(pm.card_brand ?? 'Card').toUpperCase()} •••• ${pm.card_last4}` : '—' }}</dd>
