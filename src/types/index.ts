@@ -109,7 +109,7 @@ export interface ContractorDetail extends ContractorRow {
   background_status: 'not_started' | 'in_progress' | 'passed' | 'failed'
   background_checked_at: string | null
   background_notes: string | null
-  verification: { ready: boolean; missing: string[]; checks: { id: boolean; tax_ack: boolean; background_consent: boolean; background_check: boolean } }
+  verification: { ready: boolean; missing: string[]; checks: { id: boolean; cv: boolean; tax_ack: boolean; background_consent: boolean; background_check: boolean } }
 }
 export interface ContractorSummary { pending: number; approved: number; suspended: number; rejected: number; total: number }
 export interface ContractorCampaign { id: string; name: string; code: string; scans: number; signups: number; is_active: boolean; created_at: string }
