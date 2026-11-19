@@ -190,7 +190,7 @@ async function removeDoc(d: ContractorDoc) {
             <div v-if="canUpdate" class="up">
               <select v-model="upload.kind" class="select" aria-label="Document type"><option v-for="(l, k) in kindLabel" :key="k" :value="k">{{ l }}</option></select>
               <button type="button" class="btn btn-ghost btn-sm" :disabled="upload.busy" @click="fileInput?.click()"><Loader2 v-if="upload.busy" :size="15" class="spin" /><Upload v-else :size="15" /> Add file</button>
-              <input ref="fileInput" type="file" accept="image/jpeg,image/png,application/pdf" class="sr-only" tabindex="-1" @change="onFile" />
+              <input ref="fileInput" type="file" :accept="upload.kind === 'cv' ? 'application/pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'image/jpeg,image/png,application/pdf'" class="sr-only" tabindex="-1" @change="onFile" />
             </div>
           </div>
           <p v-if="!p.documents.length" class="muted">No documents uploaded. A government-approved photo ID is required before approval.</p>
@@ -200,8 +200,8 @@ async function removeDoc(d: ContractorDoc) {
               <div class="dn"><strong>{{ kindLabel[d.kind] }}</strong><small>{{ d.original_name }} · {{ fileSize(d.size) }}</small></div>
               <span v-if="d.verified" class="pill green"><BadgeCheck :size="12" /> Checked</span>
               <div class="dact">
-                <button v-if="d.kind !== 'id' || canVerify" type="button" class="icon-btn" :aria-label="`Open ${d.original_name}`" @click="openDoc(d)"><ExternalLink :size="16" /></button>
-                <button v-if="d.kind !== 'id' || canVerify" type="button" class="icon-btn" :aria-label="`Download ${d.original_name}`" @click="downloadDoc(d)"><Download :size="16" /></button>
+                <button v-if="!['id', 'cv'].includes(d.kind) || canVerify" type="button" class="icon-btn" :aria-label="`Open ${d.original_name}`" @click="openDoc(d)"><ExternalLink :size="16" /></button>
+                <button v-if="!['id', 'cv'].includes(d.kind) || canVerify" type="button" class="icon-btn" :aria-label="`Download ${d.original_name}`" @click="downloadDoc(d)"><Download :size="16" /></button>
                 <button v-if="canUpdate" type="button" class="btn btn-ghost btn-sm" @click="toggleVerified(d)">{{ d.verified ? 'Unmark' : 'Mark checked' }}</button>
                 <button v-if="canUpdate" type="button" class="icon-btn danger" :aria-label="`Remove ${d.original_name}`" @click="removeDoc(d)"><Trash2 :size="16" /></button>
               </div>

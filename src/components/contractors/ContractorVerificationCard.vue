@@ -25,6 +25,7 @@ const socials: { key: string; label: string; placeholder: string }[] = [
 const v = computed(() => props.contractor.verification)
 const checklist = computed(() => [
   { ok: v.value.checks.id, label: 'Government-approved photo ID on file' },
+  ...(props.contractor.type === 'individual' ? [{ ok: v.value.checks.cv, label: 'CV on file' }] : []),
   { ok: v.value.checks.tax_ack, label: 'Agreed to handle their own taxes' },
   { ok: v.value.checks.background_consent, label: 'Consented to a background check' },
   { ok: v.value.checks.background_check, label: 'Background check passed' },

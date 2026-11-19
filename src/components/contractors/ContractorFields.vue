@@ -1,11 +1,23 @@
 <script setup lang="ts">
 import { Plus, X } from 'lucide-vue-next'
-import { COUNTRIES, postalLabel, regionLabel, regionsFor } from '@/lib/regions'
+import { COUNTRIES, postalLabel, postalOk, regionLabel, regionsFor } from '@/lib/regions'
+import { matchRegion, type AddressSuggestion } from '@/lib/address'
+import AddressSearch from '@/components/ui/AddressSearch.vue'
 import { resetRegions, type ContractorFormState } from '@/lib/contractors'
 
 /** The fields both the admin form and the public sign-up form share. */
 const form = defineModel<ContractorFormState>({ required: true })
 defineProps<{ errors: Record<string, string>; categories: { id: string; name: string }[]; idp: string }>()
+
+/** Fills the address fields from a picked suggestion. Anything that doesn't fit our checks is left for the admin to type. */
+function applyAddress(a: AddressSuggestion) {
+  const f = form.value
+  if (a.address_line1) f.address_line1 = a.address_line1
+  if (a.city) f.city = a.city
+  const region = matchRegion(f.country, a.region)
+  if (region) f.region = region
+  if (a.postal_code && postalOk(f.country, a.postal_code)) f.postal_code = a.postal_code
+}
 
 function toggleCategory(id: string) {
   const i = form.value.category_ids.indexOf(id)
@@ -57,6 +69,7 @@ function toggleCategory(id: string) {
       </select>
     </div>
 
+    <AddressSearch :country="form.country" :idp="idp" @pick="applyAddress" />
     <div>
       <label class="label" :for="`${idp}-addr`">Street address</label>
       <input :id="`${idp}-addr`" v-model="form.address_line1" class="input" :class="{ invalid: errors.address_line1 }" maxlength="160" autocomplete="address-line1" />

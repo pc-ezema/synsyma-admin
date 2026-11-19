@@ -52,5 +52,5 @@ export function resetRegions(f: ContractorFormState) {
 
 export const statusLabel: Record<ContractorStatus, string> = { pending: 'Pending', approved: 'Approved', suspended: 'Suspended', rejected: 'Rejected' }
 export const statusPill: Record<ContractorStatus, string> = { pending: '', approved: 'green', suspended: 'grey', rejected: 'red' }
-export const kindLabel: Record<DocKind, string> = { id: 'Photo ID', insurance: 'Insurance', licence: 'Licence', other: 'Other' }
+export const kindLabel: Record<DocKind, string> = { id: 'Photo ID', cv: 'CV', insurance: 'Insurance', licence: 'Licence', other: 'Other' }
 export const fileSize = (n: number) => (n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`)

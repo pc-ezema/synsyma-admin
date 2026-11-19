@@ -87,7 +87,7 @@ export interface ServiceItem {
 export type ContractorType = 'company' | 'individual'
 export type ContractorStatus = 'pending' | 'approved' | 'suspended' | 'rejected'
 export type CountryCode = 'CA' | 'US' | 'GB'
-export type DocKind = 'id' | 'insurance' | 'licence' | 'other'
+export type DocKind = 'id' | 'cv' |'insurance' | 'licence' | 'other'
 export interface ContractorRow {
   id: string; type: ContractorType; name: string; contact_name: string; email: string; phone: string
   country: CountryCode; city: string; region: string; status: ContractorStatus
