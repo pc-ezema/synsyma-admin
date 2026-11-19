@@ -128,7 +128,7 @@ export interface BookingRow {
 }
 export interface BookingEventRow { id: string; type: string; from_status: BookingStatus | null; to_status: BookingStatus | null; actor: 'customer' | 'admin' | 'system'; note: string | null; created_at: string }
 export interface CancelQuote { allowed: boolean; tier: 'free' | 'partial' | 'none'; fee_percent: number; currency: string; paid: number; fee: number; refund: number; message: string }
-export interface BookingPolicy { free_cancel_hours: number; late_cancel_hours: number; late_cancel_fee_percent: number; call_out_fee_percent: number; auto_complete_hours: number; free_reschedules: number; max_extra_hours: number }
+export interface BookingPolicy { free_cancel_hours: number; late_cancel_hours: number; late_cancel_fee_percent: number; call_out_fee_percent: number; auto_complete_hours: number; free_reschedules: number; max_extra_hours: number; }
 export interface BookingPaymentRow {
   id: string; provider: 'stripe' | 'paypal'; purpose: 'booking' | 'extra_hours'; hours: number | null; status: 'requires_payment' | 'succeeded' | 'failed' | 'refunded' | 'partially_refunded'
   amount: string; currency: string; card_brand: string | null; card_last4: string | null

@@ -7,7 +7,7 @@ import { toast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import type { BookingPolicy } from '@/types'
 
-type PolicyKey = 'free_cancel_hours' | 'late_cancel_hours' | 'late_cancel_fee_percent' | 'call_out_fee_percent' | 'free_reschedules' | 'max_extra_hours'
+type PolicyKey = 'free_cancel_hours' | 'late_cancel_hours' | 'late_cancel_fee_percent' | 'call_out_fee_percent' | 'free_reschedules' | 'max_extra_hours' | 'auto_complete_hours'
 
 const auth = useAuthStore()
 const canManage = computed(() => auth.can('bookings.manage'))
@@ -17,7 +17,7 @@ const error = ref('')
 const saving = ref(false)
 const errors = reactive<Record<string, string>>({})
 const form = reactive<Record<PolicyKey, string>>({
-  free_cancel_hours: '', late_cancel_hours: '', late_cancel_fee_percent: '', call_out_fee_percent: '', free_reschedules: '', max_extra_hours: '',
+  free_cancel_hours: '', late_cancel_hours: '', late_cancel_fee_percent: '', call_out_fee_percent: '', free_reschedules: '', max_extra_hours: '', auto_complete_hours: '',
 })
 
 function fill(p: BookingPolicy) { (Object.keys(form) as (PolicyKey)[]).forEach((k) => { form[k] = String(p[k]) }) }
@@ -40,6 +40,7 @@ async function save() {
     ['call_out_fee_percent', 0, 100, 'Enter 0 to 100.'],
     ['free_reschedules', 0, 10, 'Enter 0 to 10.'],
     ['max_extra_hours', 0, 12, 'Enter 0 to 12.'],
+    ['auto_complete_hours', 1, 168, 'Enter 1 to 168 hours.'], // match the range in your backend validation
   ]
   for (const [k, min, max, msg] of rules) {
     const v = n(k)
@@ -122,6 +123,11 @@ async function save() {
             <label class="label" for="p5">Most extra hours a customer can add</label>
             <input id="p5" v-model="form.max_extra_hours" class="input" inputmode="numeric" :readonly="!canManage" :class="{ invalid: errors.max_extra_hours }">
             <p v-if="errors.max_extra_hours" class="err-text">{{ errors.max_extra_hours }}</p>
+          </div>
+          <div>
+            <label class="label" for="p6">Complete automatically after (hours)</label>
+            <input id="p6" v-model="form.auto_complete_hours" class="input" inputmode="numeric" :readonly="!canManage" :class="{ invalid: errors.auto_complete_hours }">
+            <p v-if="errors.auto_complete_hours" class="err-text">{{ errors.auto_complete_hours }}</p>
           </div>
         </div>
 
