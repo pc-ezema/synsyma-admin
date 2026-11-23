@@ -39,7 +39,14 @@ async function load() {
 onMounted(load)
 
 const VERSION = /^\d{1,3}\.\d{1,3}\.\d{1,3}$/
-const cmp = (a: string, b: string) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1; return 0 }
+const cmp = (a: string, b: string) => {
+  const x = a.split('.').map(Number), y = b.split('.').map(Number)
+  for (let i = 0; i < 3; i++) {
+    const p = x[i] ?? 0, q = y[i] ?? 0
+    if (p !== q) return p < q ? -1 : 1
+  }
+  return 0
+}
 
 async function save(p: Platform, label: string) {
   const f = form[p]; const e = errors[p]
