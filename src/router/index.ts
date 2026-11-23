@@ -45,6 +45,7 @@ const router = createRouter({
         { path: 'profile', name: 'profile', component: () => import('@/views/ProfileView.vue'), meta: { title: 'My profile' } },
         { path: 'notifications', name: 'notifications', component: () => import('@/views/NotificationsView.vue'), meta: { title: 'Notifications' } },
         { path: 'settings', name: 'settings', component: () => import('@/views/SettingsView.vue'), meta: { title: 'Settings', permission: 'settings.view' } },
+        { path: 'app-versions', name: 'app-versions', component: () => import('@/views/AppVersionsView.vue'), meta: { title: 'App versions', permission: 'settings.view' } },
         { path: 'forbidden', name: 'forbidden', component: () => import('@/views/ForbiddenView.vue'), meta: { title: 'No access' } },
       ],
     },

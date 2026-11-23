@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { AlertCircle, Bell, Building2, CalendarClock, ChevronRight, CreditCard, LifeBuoy, Loader2, SlidersHorizontal, Wallet } from 'lucide-vue-next'
+import { AlertCircle, Bell, Building2, CalendarClock, ChevronRight, CreditCard, LifeBuoy, Loader2, Smartphone, SlidersHorizontal, Wallet } from 'lucide-vue-next'
 import { api } from '@/lib/api'
 import { parseError } from '@/lib/errors'
 import { toast } from '@/composables/useToast'
@@ -75,6 +75,7 @@ const links = computed(() => [
   { to: '/payouts', title: 'Payouts', text: 'Default commission and how long earnings are held.', icon: Wallet, show: auth.can('payouts.view') },
   { to: '/payments', title: 'Payments', text: 'Stripe and PayPal activity, and which gateways are on.', icon: CreditCard, show: auth.can('bookings.view') },
   { to: '/support', title: 'Support contacts', text: 'Phone numbers, emails and WhatsApp shown in the app.', icon: LifeBuoy, show: auth.can('support.view') },
+  { to: '/app-versions', title: 'App versions', text: 'Force or suggest app updates.', icon: Smartphone, show: auth.can('settings.view') },
   { to: '/profile', title: 'My notifications', text: 'Which alerts you get by push and email.', icon: Bell, show: true },
 ].filter((l) => l.show))
 </script>
