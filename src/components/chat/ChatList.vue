@@ -46,7 +46,7 @@ function onScroll(e: Event) {
           </small>
           <span v-if="c.status === 'closed' || c.assigned_admin" class="tags">
             <i v-if="c.status === 'closed'" class="tag closed">Closed</i>
-            <i v-if="c.assigned_admin" class="tag">{{ c.assigned_admin.name.split(' ')[0] }}</i>
+            <i v-if="c.assigned_admin" class="tag">{{ c.assigned_admin.name }}</i>
           </span>
         </span>
         <span class="end">
