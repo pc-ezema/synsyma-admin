@@ -227,6 +227,7 @@ export interface ReviewSummary { average: number | null; count: number; hidden: 
 /* ---------- users (customers) ---------- */
 export interface UserRow {
   id: string; first_name: string; last_name: string; full_name: string
+  photo_url?: string | null
   email: string; email_verified: boolean; phone: string | null
   is_active: boolean; last_login_at: string | null; created_at: string
   bookings_count: number; paid_total: number

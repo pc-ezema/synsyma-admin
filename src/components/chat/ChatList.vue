@@ -38,7 +38,7 @@ function onScroll(e: Event) {
       <div v-else-if="!chat.inbox.length" class="state"><Inbox :size="30" /><p>No conversations here yet.</p></div>
 
       <button v-for="c in chat.inbox" :key="c.id" type="button" class="row" :class="{ active: c.id === chat.activeId, unread: c.unread_count > 0 }" @click="emit('select', c.id)">
-        <UserAvatar :name="c.user.full_name || c.user.first_name" :src="null" :size="44" />
+        <UserAvatar :name="c.user.full_name || c.user.first_name" :src="c.user.photo_url ?? null" :size="44" />
         <span class="mid">
           <strong>{{ c.user.full_name || `${c.user.first_name} ${c.user.last_name}` }}</strong>
           <small>

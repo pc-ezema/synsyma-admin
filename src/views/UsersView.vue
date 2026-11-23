@@ -7,6 +7,7 @@ import { parseError } from '@/lib/errors'
 import { formatDateTime } from '@/lib/format'
 import { money } from '@/lib/bookings'
 import type { PageMeta, UserRow, UserSummary } from '@/types'
+import UserAvatar from '@/components/ui/UserAvatar.vue'
 
 const router = useRouter()
 const rows = ref<UserRow[]>([])
@@ -38,7 +39,6 @@ function onSearch() { window.clearTimeout(t); t = window.setTimeout(refilter, 30
 function setStatus(s: '' | 'active' | 'inactive') { status.value = s; refilter() }
 function go(p: number) { page.value = p; load() }
 const open = (u: UserRow) => router.push(`/users/${u.id}`)
-const initials = (u: UserRow) => `${u.first_name?.[0] ?? ''}${u.last_name?.[0] ?? ''}`.toUpperCase() || '?'
 </script>
 
 <template>
@@ -71,7 +71,7 @@ const initials = (u: UserRow) => `${u.first_name?.[0] ?? ''}${u.last_name?.[0] ?
           <tbody>
             <tr v-for="u in rows" :key="u.id" class="click" :class="{ dim: !u.is_active }" tabindex="0" @click="open(u)" @keydown.enter="open(u)">
               <td>
-                <div class="who"><span class="av" aria-hidden="true">{{ initials(u) }}</span><div><strong>{{ u.full_name || '—' }}</strong><small>{{ u.email }}<template v-if="!u.email_verified"> · not verified</template></small></div></div>
+                <div class="who"><UserAvatar :name="u.full_name" :src="u.photo_url ?? null" :size="36" /><div><strong>{{ u.full_name || '—' }}</strong><small>{{ u.email }}<template v-if="!u.email_verified"> · not verified</template></small></div></div>
               </td>
               <td>{{ u.phone || '—' }}</td>
               <td>{{ u.bookings_count }}</td>
@@ -108,7 +108,6 @@ const initials = (u: UserRow) => `${u.first_name?.[0] ?? ''}${u.last_name?.[0] ?
 tr.click { cursor: pointer; } tr.click:hover { background: rgba(0, 102, 255, 0.04); } tr.dim { opacity: 0.7; }
 .who { display: flex; align-items: center; gap: 10px; }
 .who strong { display: block; } .who small { display: block; color: var(--text-mute); }
-.av { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: rgba(0, 102, 255, 0.1); color: var(--blue-ink); font-size: 13px; font-weight: 700; }
 .go { color: var(--text-mute); text-align: right; }
 .pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--line); font-size: 14px; color: var(--text-mute); }
 </style>
